@@ -17,16 +17,17 @@ struct ParseTree{
     list: Vec<Expr>,
 }
 
+#[derive(Debug)]
 enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
-    Function(ParseTree),
+    //Function(ParseTree),
     Name(String),
     SchemeError(),
 }
 use Val::Number;
 use Val::Boolean;
-use Val::Function;
+//use Val::Function;
 use Val::Name;
 use Val::SchemeError;
 
@@ -38,12 +39,13 @@ impl ops::Add<Val> for Val {
             if let Number(oneg, on, od) = rhs{
                 let new_denom = d * od / d.gcd(od);
                 let mut n = n * new_denom / od;
-                let mut on = on * new_denom / d;
+                let on = on * new_denom / d;
                 let mut neg = neg;
-if n > on {
+
+                if n > on {
                     n = if neg{n - on} else {on + n};
                 }
-                if on > n {
+                else {
                     neg = oneg;
                     n = if neg{on - n} else {on + n};
                 }
@@ -119,7 +121,18 @@ fn apply_func(func: Val, val: Vec<Val>) -> Val{
     match func{
         Name(s) => {
             match s.as_str(){
-                "+" => val.into_iter().fold(Number(false, 0, 1), |x, y| x + y),
+                "+" => {
+                    val.into_iter().fold(Number(false, 0, 1), |x, y| x + y)
+                },
+                "number=?" => {
+                    if val.len() != 2 {return SchemeError();}
+                    if let Number(neg, n, d) = val[0]{
+                        if let Number(oneg, on, od) = val[1]{
+                            return Boolean(neg == oneg && n == on && d == od);
+                        }
+                    }
+                    SchemeError()
+                },
                 "*" => val.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
                 _ => SchemeError(),
             }
