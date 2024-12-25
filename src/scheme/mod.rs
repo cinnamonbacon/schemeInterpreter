@@ -117,13 +117,14 @@ where
     pt
 }
 
-fn apply_func(func: Val, val: Vec<Val>) -> Val{
+fn apply_func(func: Val, mut val: Vec<Val>) -> Val{
     match func{
         Name(s) => {
             match s.as_str(){
                 "+" => {
                     val.into_iter().fold(Number(false, 0, 1), |x, y| x + y)
                 },
+                "*" => val.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
                 "number=?" => {
                     if val.len() != 2 {return SchemeError();}
                     if let Number(neg, n, d) = val[0]{
@@ -133,7 +134,20 @@ fn apply_func(func: Val, val: Vec<Val>) -> Val{
                     }
                     SchemeError()
                 },
-                "*" => val.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
+                "cond" => {
+                    if val.len() % 2 != 0 { return SchemeError(); }
+                    let mut index = 0;
+                    while index < val.len() {
+                        if let Boolean(b) = val[index] { if b { return val.remove(index + 1); }}
+                        index += 2;
+                    }
+                    SchemeError()
+                },
+                "if" => {
+                    if val.len() != 3 { return SchemeError(); }
+                    if let Boolean(b) = val[0] { if b { return val.remove(1); } else { return val.remove(2); }}
+                    SchemeError()
+                },
                 _ => SchemeError(),
             }
         }
