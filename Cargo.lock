@@ -3,5 +3,30 @@
 version = 4
 
 [[package]]
+name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
+
+[[package]]
+name = "gcd"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d758ba1b47b00caf47f24925c0074ecb20d6dfcffe7f6d53395c0465674841a"
+
+[[package]]
+name = "lcm"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "275ac8d2c672208718064f59363a2b7ff16d64fea95b676ff5a310a2c203d938"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "scheme"
 version = "0.1.0"
+dependencies = [
+ "gcd",
+ "lcm",
+]
