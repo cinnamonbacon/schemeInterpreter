@@ -8,14 +8,14 @@ use gcd::Gcd;
 enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
-    //Function(ParseTree),
-    Name(String),
+    Unbound(Expr),
+    //Name(String),
     SchemeError(),
 }
 use Val::Number;
 use Val::Boolean;
-//use Val::Function;
-use Val::Name;
+use Val::Unbound;
+//use Val::Name;
 use Val::SchemeError;
 
 #[derive(Debug)]
@@ -148,35 +148,34 @@ where
     pt
 }
 
-fn apply_func(func: Val, mut val: Vec<Val>) -> Val{
+fn apply_func(mut vals: Vec<Val>) -> Val{
+    let func = vals.remove(0);
     match func{
-        Name(s) => {
+        Unbound(Text(s)) => {
             match s.as_str(){
-                "+" => {
-                    val.into_iter().fold(Number(false, 0, 1), |x, y| x + y)
-                },
-                "*" => val.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
+                "+" =>  vals.into_iter().fold(Number(false, 0, 1), |x, y| x + y),
+                "*" => vals.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
                 "number=?" => {
-                    if val.len() != 2 {return SchemeError();}
-                    if let Number(neg, n, d) = val[0]{
-                        if let Number(oneg, on, od) = val[1]{
+                    if vals.len() != 2 {return SchemeError();}
+                    if let Number(neg, n, d) = vals[0]{
+                        if let Number(oneg, on, od) = vals[1]{
                             return Boolean(neg == oneg && n == on && d == od);
                         }
                     }
                     SchemeError()
                 },
                 "cond" => {
-                    if val.len() % 2 != 0 { return SchemeError(); }
+                    if vals.len() % 2 != 0 { return SchemeError(); }
                     let mut index = 0;
-                    while index < val.len() {
-                        if let Boolean(b) = val[index] { if b { return val.remove(index + 1); }}
+                    while index < vals.len() {
+                        if let Boolean(b) = vals[index] { if b { return vals.remove(index + 1); }}
                         index += 2;
                     }
                     SchemeError()
                 },
                 "if" => {
-                    if val.len() != 3 { return SchemeError(); }
-                    if let Boolean(b) = val[0] { if b { return val.remove(1); } else { return val.remove(2); }}
+                    if vals.len() != 3 { return SchemeError(); }
+                    if let Boolean(b) = vals[0] { if b { return vals.remove(1); } else { return vals.remove(2); }}
                     SchemeError()
                 },
                 _ => SchemeError(),
@@ -188,19 +187,19 @@ fn apply_func(func: Val, mut val: Vec<Val>) -> Val{
 
 fn eval_scheme(ex: &Expr) -> Val{
     match ex{
-        Text(txt) => if let Ok(n) = txt.parse(){ Number(false, n , 1) } else{Name(String::from(txt))},
+        Text(txt) => if let Ok(n) = txt.parse(){ Number(false, n , 1) } else{Unbound(Text(String::from(txt)))},
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();
-            let func = eval_scheme(&expr.list[0]);
-            let mut first = false;
             for exp in &expr.list {
-                if !first {
-                    first = true;
-                    continue;
+                let next_res = eval_scheme(&exp);
+                if let Unbound(_exp) = &next_res{
+                    if vals.len() > 0 {
+                        return Unbound(ex.clone());
+                    }
                 }
-                vals.push(eval_scheme(&exp))
+                vals.push(next_res);
             }
-            apply_func(func, vals)
+            apply_func(vals)
         }
     }
 }
@@ -217,7 +216,7 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
 
     let mut definitions = HashMap::new();
 
-    for mut expr in tree.list{
+    for expr in tree.list{
         if let Tree(tr) = expr.clone(){
             if let Text(s) = &tr.list[0]{
                 if s == "define" {
@@ -230,10 +229,15 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
             }
         }
 
-        for (replaced, replacement) in &definitions{
-            expr = expr.bind_val(&replaced, &replacement);
+        let mut result = eval_scheme(&expr);
+
+        if let Unbound(mut exp) = result{
+            for (replaced, replacement) in &definitions{
+                exp = exp.bind_val(&replaced, &replacement);
+            }
+            result = eval_scheme(&exp);
         }
-        let result = eval_scheme(&expr);
+
         match result{
             Number(neg, n, d) => {
                 if neg {
