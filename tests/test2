@@ -1,0 +1,4 @@
+(define t 2)
+(define x (+ 1 1))
+(number=? t x)
+(number=? t 3)

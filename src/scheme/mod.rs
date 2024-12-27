@@ -1,21 +1,8 @@
 use std::fs::File;
-use std::io::{self, Read};
-use std::ops;
+use std::io::{self, Read}; use std::ops;
+use std::collections::HashMap;
 
 use gcd::Gcd;
-
-#[derive(Debug)]
-enum Expr{
-    Text(String),
-    Tree(Box<ParseTree>),
-}
-use Expr::Text;
-use Expr::Tree;
-
-#[derive(Debug)]
-struct ParseTree{
-    list: Vec<Expr>,
-}
 
 #[derive(Debug)]
 enum Val{
@@ -30,6 +17,50 @@ use Val::Boolean;
 //use Val::Function;
 use Val::Name;
 use Val::SchemeError;
+
+#[derive(Debug)]
+enum Expr{
+    Text(String),
+    Tree(Box<ParseTree>),
+}
+use Expr::Text;
+use Expr::Tree;
+
+impl Clone for Expr{
+    fn clone(&self) -> Self {
+        match self{
+            Text(s)=> Text(s.clone()),
+            Tree(pt) => {
+                let mut ret = ParseTree{ list: Vec::new() };
+                for lexp in &pt.list{
+                    ret.list.push(lexp.clone());
+                }
+                Tree(Box::new(ret))
+            }
+        }
+    }
+}
+
+impl Expr{
+    fn bind_val(self, replace: &String, exp: &Expr) -> Expr{
+        match self{
+            Text(s) => if s == *replace { exp.clone() } else{ Text(s) },
+            Tree(pt) => {
+                let mut ret = ParseTree{ list: Vec::new() };
+                for lexp in pt.list{
+                    ret.list.push(lexp.bind_val(replace, exp));
+                }
+                Tree(Box::new(ret))
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ParseTree{
+    list: Vec<Expr>,
+}
+
 
 impl ops::Add<Val> for Val {
     type Output = Val;
@@ -175,7 +206,6 @@ fn eval_scheme(ex: &Expr) -> Val{
 }
 
 
-
 pub fn run_scheme(s: &str)-> Result<String, io::Error> {
     let mut text = String::new();
 
@@ -185,7 +215,24 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
     let tree = build_tree(&mut (parsed.into_iter()));
     //println!("{tree:?}");
 
-    for expr in tree.list{
+    let mut definitions = HashMap::new();
+
+    for mut expr in tree.list{
+        if let Tree(tr) = expr.clone(){
+            if let Text(s) = &tr.list[0]{
+                if s == "define" {
+                    match tr.list[1].clone() {
+                        Text(var) => {definitions.insert(var, tr.list[2].clone()); ()}
+                        _ => () // TODO: functions
+                    }
+                    continue;
+                }
+            }
+        }
+
+        for (replaced, replacement) in &definitions{
+            expr = expr.bind_val(&replaced, &replacement);
+        }
         let result = eval_scheme(&expr);
         match result{
             Number(neg, n, d) => {
