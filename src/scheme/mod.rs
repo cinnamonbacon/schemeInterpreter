@@ -9,28 +9,46 @@ enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
     Unbound(Expr),
-    Funtion(Vec<String>, Expr),
+    Function(Vec<String>, Expr),
     //Name(String),
     SchemeError(),
 }
+
 use Val::Number;
 use Val::Boolean;
 use Val::Unbound;
+use Val::Function;
 //use Val::Name;
 use Val::SchemeError;
+
+impl Clone for Val{
+    fn clone(&self) -> Self {
+        match self{
+            Number(b, n, d) => Number(*b, *n, *d),
+            Boolean(b) => Boolean(*b),
+            Unbound(exp) => Unbound(exp.clone()),
+            Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
+            SchemeError() => SchemeError(),
+        }
+    }
+}
+
 
 #[derive(Debug)]
 enum Expr{
     Text(String),
+    Bound(Box<Val>),
     Tree(Box<ParseTree>),
 }
 use Expr::Text;
+use Expr::Bound;
 use Expr::Tree;
 
 impl Clone for Expr{
     fn clone(&self) -> Self {
         match self{
             Text(s)=> Text(s.clone()),
+            Bound(v) => Bound(Box::new(*v.clone())),
             Tree(pt) => {
                 let mut ret = ParseTree{ list: Vec::new() };
                 for lexp in &pt.list{
@@ -43,16 +61,17 @@ impl Clone for Expr{
 }
 
 impl Expr{
-    fn bind_val(self, replace: &String, exp: &Expr) -> Expr{
+    fn bind_val(self, replace: &String, v: &Val) -> Expr{
         match self{
-            Text(s) => if s == *replace { exp.clone() } else{ Text(s) },
+            Text(s) => if s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
+            Bound(b) => Bound(b),
             Tree(pt) => {
                 let mut ret = ParseTree{ list: Vec::new() };
                 for lexp in pt.list{
-                    ret.list.push(lexp.bind_val(replace, exp));
+                    ret.list.push(lexp.bind_val(replace, v));
                 }
                 Tree(Box::new(ret))
-            }
+            },
         }
     }
 }
@@ -165,8 +184,47 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
                     }
                     SchemeError()
                 },
-                _ => SchemeError(),
+                "lambda" => {
+                    let mut bindings = Vec::new();
+                    if let Unbound(Tree(binding_list)) = &vals[0]{
+                        for binding in &*binding_list.list{
+                            if let Text(s) = binding{
+                                bindings.push(s.to_string());
+                            } else {
+                                return SchemeError();
+                            }
+                        }
+                        let expression = match &vals[1]{
+                            Unbound(expr) => expr.clone(),
+                            other => Bound(Box::new(other.clone())),
+                        };
+                        Function(bindings, expression)
+                    } else {
+                        SchemeError()
+                    }
+                }
+                other => {
+                    let mut tree = Vec::new();
+                    tree.push(Text(other.to_string()));
+                    for v in &vals{
+                        tree.push(match v{
+                            Unbound(expr) => expr.clone(),
+                            other => Bound(Box::new(other.clone())),
+                        });
+                    }
+                    Unbound(Tree(Box::new(ParseTree{ list: tree })))
+                },
             }
+        }
+        Function(bindings, mut exp) => {
+            if bindings.len() != vals.len(){
+                return SchemeError();
+            }
+            for it in bindings.iter().zip(vals.iter()){
+                let (binding, val) = it;
+                exp = exp.bind_val(&binding, &val);
+            }
+            eval_scheme(&exp)
         }
         _ => SchemeError(),
     }
@@ -175,13 +233,20 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
 fn eval_scheme(ex: &Expr) -> Val{
     match ex{
         Text(txt) => if let Ok(n) = txt.parse(){ Number(false, n , 1) } else{Unbound(Text(String::from(txt)))},
+        Bound(v) => *v.clone(),
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();
             for exp in &expr.list {
                 let next_res = eval_scheme(&exp);
                 if let Unbound(exp) = &next_res{
                     if vals.len() > 0 {
-                        return Unbound(ex.clone());
+                        if let Unbound(Text(s)) = &vals[0]{
+                            if s != "lambda"{
+                                return Unbound(ex.clone());
+                            }
+                        } else {
+                            return Unbound(ex.clone());
+                        }
                     }
                     if let Text(s) = &exp{
                         match s.as_str(){
@@ -222,6 +287,17 @@ fn eval_scheme(ex: &Expr) -> Val{
     }
 }
 
+fn eval_scheme_with_def(ex: &Expr, definitions: &HashMap::<String, Val>) -> Val{
+    let mut result = eval_scheme(ex);
+    while let Unbound(mut exp) = result{
+        for (replaced, replacement) in definitions{
+            exp = exp.bind_val(&replaced, &replacement);
+        }
+        result = eval_scheme(&exp);
+    }
+    result
+}
+
 
 pub fn run_scheme(s: &str)-> Result<String, io::Error> {
     let mut text = String::new();
@@ -239,7 +315,7 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
             if let Text(s) = &tr.list[0]{
                 if s == "define" {
                     match tr.list[1].clone() {
-                        Text(var) => {definitions.insert(var, tr.list[2].clone()); ()}
+                        Text(var) => {definitions.insert(var, eval_scheme_with_def(&tr.list[2], &definitions)); ()}
                         _ => () // TODO: functions
                     }
                     continue;
@@ -247,14 +323,8 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
             }
         }
 
-        let mut result = eval_scheme(&expr);
+        let result = eval_scheme_with_def(&expr, &definitions);
 
-        if let Unbound(mut exp) = result{
-            for (replaced, replacement) in &definitions{
-                exp = exp.bind_val(&replaced, &replacement);
-            }
-            result = eval_scheme(&exp);
-        }
 
         match result{
             Number(neg, n, d) => {
