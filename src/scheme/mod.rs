@@ -64,7 +64,19 @@ impl Expr{
     fn bind_val(self, replace: &String, v: &Val) -> Expr{
         match self{
             Text(s) => if s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
-            Bound(b) => Bound(b),
+            Bound(b) => {
+                if let Function(bindings, expr) = *b{
+                    if let Some(_) = bindings.iter().position(|s| s == replace){
+                        Bound(Box::new(Function(bindings, expr)))
+                    }
+                    else{
+                        Bound(Box::new(Function(bindings, expr.bind_val(replace, v))))
+                    }
+                }
+                else{
+                    Bound(b)
+                }
+            }
             Tree(pt) => {
                 let mut ret = ParseTree{ list: Vec::new() };
                 for lexp in pt.list{
@@ -88,17 +100,22 @@ impl ops::Add<Val> for Val {
     fn add(self, rhs: Val) -> Val {
         if let Number(neg, n ,d) = self{
             if let Number(oneg, on, od) = rhs{
-                let new_denom = d * od / d.gcd(od);
+                let mut new_denom = d * od / d.gcd(od);
                 let mut n = n * new_denom / od;
                 let on = on * new_denom / d;
                 let mut neg = neg;
 
                 if n > on {
-                    n = if neg{n - on} else {on + n};
+                    n = if neg == oneg {n + on} else {n - on};
                 }
                 else {
+                    n = if neg == oneg {on + n} else {on - n};
                     neg = oneg;
-                    n = if neg{on - n} else {on + n};
+                }
+
+                if n == 0 {
+                    new_denom = 1;
+                    neg = false;
                 }
 
                 return Number(neg, n, new_denom);
@@ -107,6 +124,39 @@ impl ops::Add<Val> for Val {
         SchemeError()
     }
 }
+
+impl ops::Sub<Val> for Val {
+    type Output = Val;
+
+    fn sub(self, rhs: Val) -> Val {
+        if let Number(neg, n ,d) = self{
+            if let Number(oneg, on, od) = rhs{
+                let mut new_denom = d * od / d.gcd(od);
+                let mut n = n * new_denom / od;
+                let on = on * new_denom / d;
+                let mut neg = neg;
+                let oneg = !oneg;
+
+                if n > on {
+                    n = if neg == oneg {n + on} else {n - on};
+                }
+                else {
+                    n = if neg == oneg {on + n} else {on - n};
+                    neg = oneg;
+                }
+
+                if n == 0 {
+                    new_denom = 1;
+                    neg = false;
+                }
+
+                return Number(neg, n, new_denom);
+            }
+        }
+        SchemeError()
+    }
+}
+
 impl ops::Mul<Val> for Val {
     type Output = Val;
 
@@ -174,6 +224,13 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
         Unbound(Text(s)) => {
             match s.as_str(){
                 "+" =>  vals.into_iter().fold(Number(false, 0, 1), |x, y| x + y),
+                "-" =>  {
+                    let mut sum = vals[0].clone();
+                    for val in vals.into_iter().skip(1){
+                        sum = sum - val;
+                    }
+                    sum
+                }
                 "*" => vals.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
                 "number=?" => {
                     if vals.len() != 2 {return SchemeError();}
@@ -232,7 +289,7 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
 
 fn eval_scheme(ex: &Expr) -> Val{
     match ex{
-        Text(txt) => if let Ok(n) = txt.parse(){ Number(false, n , 1) } else{Unbound(Text(String::from(txt)))},
+        Text(txt) => if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) } else{Unbound(Text(String::from(txt)))},
         Bound(v) => *v.clone(),
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();
@@ -246,8 +303,7 @@ fn eval_scheme(ex: &Expr) -> Val{
                             }
                         } else {
                             return Unbound(ex.clone());
-                        }
-                    }
+                        } }
                     if let Text(s) = &exp{
                         match s.as_str(){
                             // Special treatement of cond and if
@@ -306,7 +362,6 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
     let parsed = tokenize_scheme(&text);
 
     let tree = build_tree(&mut (parsed.into_iter()));
-    //println!("{tree:?}");
 
     let mut definitions = HashMap::new();
 
@@ -315,7 +370,20 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
             if let Text(s) = &tr.list[0]{
                 if s == "define" {
                     match tr.list[1].clone() {
-                        Text(var) => {definitions.insert(var, eval_scheme_with_def(&tr.list[2], &definitions)); ()}
+                        Text(var) => {definitions.insert(var, eval_scheme_with_def(&tr.list[2], &definitions));}
+                        Tree(mut bindings) => {
+                            if let Text(var) = bindings.list.remove(0){
+                                let mut bounded = Vec::new();
+                                for bind in bindings.list{
+                                    if let Text(s) = bind{
+                                        bounded.push(s);
+                                    } else {
+                                        continue;
+                                    }
+                                }
+                                definitions.insert(var, Function(bounded, tr.list[2].clone()));
+                            }
+                        }
                         _ => () // TODO: functions
                     }
                     continue;

@@ -3,3 +3,5 @@
 (number=? (+ 1 2 3 4) 10)
 (if (number=? 2 1) 2 3)
 (cond (number=? 1 1) 2 (number=? 1 2) 3)
+(+ 3 -1)
+(- 4 2)
