@@ -9,6 +9,7 @@ enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
     Unbound(Expr),
+    Funtion(Vec<String>, Expr),
     //Name(String),
     SchemeError(),
 }
@@ -164,20 +165,6 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
                     }
                     SchemeError()
                 },
-                "cond" => {
-                    if vals.len() % 2 != 0 { return SchemeError(); }
-                    let mut index = 0;
-                    while index < vals.len() {
-                        if let Boolean(b) = vals[index] { if b { return vals.remove(index + 1); }}
-                        index += 2;
-                    }
-                    SchemeError()
-                },
-                "if" => {
-                    if vals.len() != 3 { return SchemeError(); }
-                    if let Boolean(b) = vals[0] { if b { return vals.remove(1); } else { return vals.remove(2); }}
-                    SchemeError()
-                },
                 _ => SchemeError(),
             }
         }
@@ -192,9 +179,40 @@ fn eval_scheme(ex: &Expr) -> Val{
             let mut vals: Vec::<Val> = Vec::new();
             for exp in &expr.list {
                 let next_res = eval_scheme(&exp);
-                if let Unbound(_exp) = &next_res{
+                if let Unbound(exp) = &next_res{
                     if vals.len() > 0 {
                         return Unbound(ex.clone());
+                    }
+                    if let Text(s) = &exp{
+                        match s.as_str(){
+                            // Special treatement of cond and if
+                            "cond" => {
+                                if expr.list.len() % 2 != 1 { return SchemeError(); }
+                                let mut index = 1;
+                                while index < expr.list.len() {
+                                    match eval_scheme(&expr.list[index]){
+                                        Boolean(true) => { return eval_scheme(&expr.list[index + 1]); },
+                                        Boolean(false) => (),
+                                        // TODO make more efficient by not repeating conditions
+                                        // done before
+                                        Unbound(_exp) => {return Unbound(ex.clone());},
+                                        _ => {return SchemeError()},
+                                    }
+                                    index += 2;
+                                }
+                                return SchemeError();
+                            },
+                            "if" => {
+                                if expr.list.len() != 4 { return SchemeError(); }
+                                match eval_scheme(&expr.list[1]){
+                                    Boolean(true) => {return eval_scheme(&expr.list[2]);},
+                                    Boolean(false) => {return eval_scheme(&expr.list[3]);},
+                                    Unbound(_exp) => {return Unbound(ex.clone());},
+                                    _ => {return SchemeError()}
+                                }
+                            },
+                            _ => (),
+                        }
                     }
                 }
                 vals.push(next_res);
