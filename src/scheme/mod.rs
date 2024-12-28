@@ -289,7 +289,12 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
 
 fn eval_scheme(ex: &Expr) -> Val{
     match ex{
-        Text(txt) => if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) } else{Unbound(Text(String::from(txt)))},
+        Text(txt) => {
+            if txt == "true" { Boolean(true) }
+            else if txt == "false" { Boolean(false) }
+            else if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) } 
+            else{Unbound(Text(String::from(txt)))}
+        },
         Bound(v) => *v.clone(),
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();

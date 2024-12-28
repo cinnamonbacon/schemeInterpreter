@@ -46,3 +46,11 @@ Putting this all together we can write a basic implementation of factorial
 (define (fact n) (if (number=? n 0) 1 (* n (fact (- n 1)))))
 (+ x 2)
 ```
+
+You may also want to play around with lambda functions which are implemented. Consider the implementation of pairs.
+Lists can then be implemented from here by nesting pairs.
+```scheme
+(define (pair x y) (lambda (b) (if b x y)))
+(define (first p) (p true))
+(define (second p) (p false))
+```

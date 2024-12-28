@@ -1,0 +1,7 @@
+(define (pair x y) (lambda (b) (if b x y)))
+(define (first p) (p true))
+(define (second p) (p false))
+
+(first (pair 4 (pair 3 2)))
+(first (second (pair 4 (pair 3 2))))
+(second (second (pair 4 (pair 3 2))))
