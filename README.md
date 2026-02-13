@@ -1,7 +1,7 @@
 This is an interpreter for a subset of the scheme language.
 
 It is written in the rust language and uses the cargo package manager.
-To utalize it you may want to install the rust language and cargo.
+To utilize it you may want to install the rust language and cargo.
 
 If you wish to utalize it you will have to clone this git repository.
 

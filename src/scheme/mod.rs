@@ -186,7 +186,7 @@ impl ParseTree{
 fn tokenize_scheme(text: &str)-> Vec<&str> {
     let mut parsed = Vec::new();
     let mut last = 0;
-    for (index, matched) in text.match_indices(|c: char| (c == '(' || c == ')')){
+    for (index, matched) in text.match_indices(|c: char| c == '(' || c == ')'){
         if last != index {
             parsed.push(&text[last..index]);
         }
