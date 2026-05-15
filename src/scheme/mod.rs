@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{self, Read}; use std::ops;
+use std::io::{Read}; use std::ops;
 use std::collections::HashMap;
 
 use gcd::Gcd;
@@ -360,15 +360,21 @@ fn eval_scheme_with_def(ex: &Expr, definitions: &HashMap::<String, Val>) -> Val{
 }
 
 
-pub fn run_scheme(s: &str)-> Result<String, io::Error> {
+pub fn run_scheme_on_file(s: &str)-> Result<String, std::io::Error> {
     let mut text = String::new();
 
     File::open(s)?.read_to_string(&mut text)?;
+    Ok(run_scheme(text))
+}
+
+pub fn run_scheme(text: String) -> String {
     let parsed = tokenize_scheme(&text);
 
     let tree = build_tree(&mut (parsed.into_iter()));
 
     let mut definitions = HashMap::new();
+
+    let mut result_string = String::new();
 
     for expr in tree.list{
         if let Tree(tr) = expr.clone(){
@@ -379,10 +385,11 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
                         Tree(mut bindings) => {
                             if let Text(var) = bindings.list.remove(0){
                                 let mut bounded = Vec::new();
-                                for bind in bindings.list{
-                                    if let Text(s) = bind{
+                                for bind in bindings.list {
+                                    if let Text(s) = bind {
                                         bounded.push(s);
-                                    } else {
+                                    }
+                                    else {
                                         continue;
                                     }
                                 }
@@ -399,31 +406,19 @@ pub fn run_scheme(s: &str)-> Result<String, io::Error> {
         let result = eval_scheme_with_def(&expr, &definitions);
 
 
-        match result{
+
+        match result {
             Number(neg, n, d) => {
-                if neg {
-                    print!("-")
-                }
-                print!("{n}");
-                if d != 1 {
-                    print!("/{d}");
-                }
-                println!("");
-                ()
+                result_string += format!("{}{n}{}\n", if neg {"-"} else {""},
+                    if d != 1 {d.to_string()} else {"".to_string()}).as_str()
             },
             Boolean(b) => {
-                println!("{b}");
-                ()
-            }
-            SchemeError() => {
-                println!("Error");
-                ()
-            }
-            _ => ()
+                result_string += format!("{}\n", b).as_str()
+            },
+            SchemeError() => result_string += "Error\n",
+            _ => result_string += "\n"
         }
     }
-
-
-    Ok(text)
+    return result_string;
 }
 

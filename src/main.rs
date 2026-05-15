@@ -1,14 +1,16 @@
 mod scheme;
+mod scheme_tests;
 
 use std::env;
-use scheme::run_scheme;
+use scheme::run_scheme_on_file;
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut arg_list = args.iter();
     _ = arg_list.next();
     for file in arg_list{
-        if let Err(error) = run_scheme(file){
-            println!("Error ({error}) running file: {file}");
+        match run_scheme_on_file(file) {
+            Ok(x) => println!("{}", x),
+            Err(e) => println!("Error: {}", e)
         }
     }
 }
