@@ -1,0 +1,4 @@
+(define (plus a b) (+ a b))
+(plus 3 4)
+(define (always-first x) (if (number=? 0 0) x (always-first x)))
+(always-first 4)

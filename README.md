@@ -3,7 +3,7 @@ This is an interpreter for a subset of the scheme language.
 It is written in the rust language and uses the cargo package manager.
 To utilize it you may want to install the rust language and cargo.
 
-If you wish to utalize it you will have to clone this git repository.
+If you wish to utilize it you will have to clone this git repository.
 
 ```bash
 git clone https://github.com/cinnamonbacon/schemeInterpreter
@@ -14,7 +14,14 @@ If you then have cargo you can run the following command to build the executable
 cargo build
 ```
 
-The following commands are implemented as of the last edit of this file:
+The executable will be built and can be found at target/debug/scheme but you can also use the command
+```
+cargo run
+```
+to run the code. Give the names of the files you wish to run through the interpreter as arguments. In the folder examples there are some files that you can try running the interpreter on.
+
+
+The following commands are implemented as of now:
 adding, multiplication, and subtraction
 ```scheme
 (+ 3 4 (* 2 (- 3 4)))
@@ -48,9 +55,9 @@ Putting this all together we can write a basic implementation of factorial
 ```
 
 You may also want to play around with lambda functions which are implemented. Consider the implementation of pairs.
-Lists can then be implemented from here by nesting pairs.
 ```scheme
 (define (pair x y) (lambda (b) (if b x y)))
 (define (first p) (p true))
 (define (second p) (p false))
 ```
+Lists can then be implemented from here by nesting pairs.
