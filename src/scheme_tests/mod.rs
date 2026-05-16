@@ -65,4 +65,13 @@ mod tests{
         let s = String::from("(define add_one (lambda (x) (+ x 1)))\n(add_one 1)");
         assert_eq!(run_scheme(s), "2\n");
     }
+
+    #[test]
+    fn scoped_def() {
+        let s = String::from("(define x 1)\n(define (f x) x)\n(f 2)");
+        assert_eq!(run_scheme(s), "2\n");
+
+        let s = String::from("(define (f x) x)\n(define x 1)\n(f 2)");
+        assert_eq!(run_scheme(s), "2\n");
+    }
 }

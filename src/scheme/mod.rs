@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::ops;
 use std::collections::HashMap;
 
@@ -359,6 +358,43 @@ fn eval_scheme_with_def(ex: &Expr, definitions: &HashMap::<String, Val>) -> Val{
     result
 }
 
+fn add_definition(expr: &Expr, definitions: &mut HashMap<String, Val>) -> bool{
+    if let Tree(tr) = expr {
+        if let Text(s) = &tr.list[0]{
+            if s == "define" {
+                match &tr.list[1] {
+                    Text(var) => {definitions.insert(var.to_string(), eval_scheme_with_def(&tr.list[2], &definitions));}
+                    Tree(bindings) => {
+                        if let Text(var) = &bindings.list[0]{
+                            let mut bounded = Vec::new();
+                            for bind in &bindings.list[1..] {
+                                if let Text(s) = bind {
+                                    bounded.push(s.to_string());
+                                }
+                                else {
+                                    continue;
+                                }
+                            }
+                            definitions.insert(var.to_string(), Function(bounded, tr.list[2].clone()));
+                        }
+                    }
+                    _ => ()
+                }
+                true
+            }
+            else {
+                false
+            }
+        }
+        else {
+            false
+        }
+    }
+    else {
+        false
+    }
+}
+
 
 
 pub fn run_scheme(text: String) -> String {
@@ -367,35 +403,10 @@ pub fn run_scheme(text: String) -> String {
     let tree = build_tree(&mut (parsed.into_iter()));
 
     let mut definitions = HashMap::new();
-
     let mut result_string = String::new();
 
     for expr in tree.list{
-        if let Tree(tr) = expr.clone(){
-            if let Text(s) = &tr.list[0]{
-                if s == "define" {
-                    match tr.list[1].clone() {
-                        Text(var) => {definitions.insert(var, eval_scheme_with_def(&tr.list[2], &definitions));}
-                        Tree(mut bindings) => {
-                            if let Text(var) = bindings.list.remove(0){
-                                let mut bounded = Vec::new();
-                                for bind in bindings.list {
-                                    if let Text(s) = bind {
-                                        bounded.push(s);
-                                    }
-                                    else {
-                                        continue;
-                                    }
-                                }
-                                definitions.insert(var, Function(bounded, tr.list[2].clone()));
-                            }
-                        }
-                        _ => () // TODO: functions
-                    }
-                    continue;
-                }
-            }
-        }
+        if add_definition(&expr, &mut definitions) {continue}
 
         let result = eval_scheme_with_def(&expr, &definitions);
 
