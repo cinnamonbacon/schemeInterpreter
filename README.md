@@ -18,7 +18,9 @@ The executable will be built and can be found at target/debug/scheme but you can
 ```
 cargo run
 ```
-to run the code. Give the names of the files you wish to run through the interpreter as arguments. In the folder examples there are some files that you can try running the interpreter on.
+to run the code. Give the names of the files you wish to run through the interpreter as arguments. If no argument is given it will read from stdin until Ctrl-D is pressed (EOF) and then output the result. 
+
+In the folder examples there are some files that you can try running the interpreter on.
 
 
 The following commands are implemented as of now:

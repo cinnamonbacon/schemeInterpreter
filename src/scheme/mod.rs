@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Read}; use std::ops;
+use std::ops;
 use std::collections::HashMap;
 
 use gcd::Gcd;
@@ -360,12 +360,6 @@ fn eval_scheme_with_def(ex: &Expr, definitions: &HashMap::<String, Val>) -> Val{
 }
 
 
-pub fn run_scheme_on_file(s: &str)-> Result<String, std::io::Error> {
-    let mut text = String::new();
-
-    File::open(s)?.read_to_string(&mut text)?;
-    Ok(run_scheme(text))
-}
 
 pub fn run_scheme(text: String) -> String {
     let parsed = tokenize_scheme(&text);
