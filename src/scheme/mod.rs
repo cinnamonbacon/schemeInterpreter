@@ -1,7 +1,19 @@
 use std::ops;
 use std::collections::HashMap;
+use phf::{phf_set, Set};
 
 use gcd::Gcd;
+
+static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
+    "+",
+    "-",
+    "*",
+    "number=?",
+    "if",
+    "cond",
+    "lambda",
+};
+
 
 #[derive(Debug)]
 enum Val{
@@ -9,6 +21,7 @@ enum Val{
     Boolean(bool),
     Unbound(Expr),
     Function(Vec<String>, Expr),
+    SupportedFunction(String),
     //Name(String),
     SchemeError(),
 }
@@ -17,6 +30,7 @@ use Val::Number;
 use Val::Boolean;
 use Val::Unbound;
 use Val::Function;
+use Val::SupportedFunction;
 //use Val::Name;
 use Val::SchemeError;
 
@@ -27,6 +41,7 @@ impl Clone for Val{
             Boolean(b) => Boolean(*b),
             Unbound(exp) => Unbound(exp.clone()),
             Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
+            SupportedFunction(s) => SupportedFunction(s.clone()),
             SchemeError() => SchemeError(),
         }
     }
@@ -78,6 +93,19 @@ impl Expr{
             }
             Tree(pt) => {
                 let mut ret = ParseTree{ list: Vec::new() };
+                if let Text(s) = &pt.list[0] {
+                    if s == "lambda" {
+                        if let Tree(bindings) = &pt.list[1] {
+                            for b in bindings.list.clone(){
+                                if let Text(binding_name) = b{
+                                    if binding_name == *replace { 
+                                        return Tree(pt) 
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
                 for lexp in pt.list{
                     ret.list.push(lexp.bind_val(replace, v));
                 }
@@ -219,8 +247,8 @@ where
 
 fn apply_func(mut vals: Vec<Val>) -> Val{
     let func = vals.remove(0);
-    match func{
-        Unbound(Text(s)) => {
+    match func {
+        SupportedFunction(s) =>
             match s.as_str(){
                 "+" =>  vals.into_iter().fold(Number(false, 0, 1), |x, y| x + y),
                 "-" =>  {
@@ -232,7 +260,7 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
                 }
                 "*" => vals.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
                 "number=?" => {
-                    if vals.len() != 2 {return SchemeError();}
+                    if vals.len() != 2 { return SchemeError(); }
                     if let Number(neg, n, d) = vals[0]{
                         if let Number(oneg, on, od) = vals[1]{
                             return Boolean(neg == oneg && n == on && d == od);
@@ -244,7 +272,7 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
                     let mut bindings = Vec::new();
                     if let Unbound(Tree(binding_list)) = &vals[0]{
                         for binding in &*binding_list.list{
-                            if let Text(s) = binding{
+                            if let Text(s) = binding {
                                 bindings.push(s.to_string());
                             } else {
                                 return SchemeError();
@@ -259,18 +287,18 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
                         SchemeError()
                     }
                 }
-                other => {
-                    let mut tree = Vec::new();
-                    tree.push(Text(other.to_string()));
-                    for v in &vals{
-                        tree.push(match v{
-                            Unbound(expr) => expr.clone(),
-                            other => Bound(Box::new(other.clone())),
-                        });
-                    }
-                    Unbound(Tree(Box::new(ParseTree{ list: tree })))
-                },
+                _ => todo!()
             }
+        Unbound(Text(s)) => {
+            let mut tree = Vec::new();
+            tree.push(Text(s.to_string()));
+            for v in &vals{
+                tree.push(match v{
+                    Unbound(expr) => expr.clone(),
+                    other => Bound(Box::new(other.clone())),
+                });
+            }
+            Unbound(Tree(Box::new(ParseTree{ list: tree })))
         }
         Function(bindings, mut exp) => {
             if bindings.len() != vals.len(){
@@ -291,7 +319,10 @@ fn eval_scheme(ex: &Expr) -> Val{
         Text(txt) => {
             if txt == "true" { Boolean(true) }
             else if txt == "false" { Boolean(false) }
-            else if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) } 
+            else if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) }
+            else if SUPPORTED_OPPERATIONS.contains(txt as &str) { 
+                SupportedFunction(txt.to_string())
+            }
             else{Unbound(Text(String::from(txt)))}
         },
         Bound(v) => *v.clone(),
@@ -299,45 +330,46 @@ fn eval_scheme(ex: &Expr) -> Val{
             let mut vals: Vec::<Val> = Vec::new();
             for exp in &expr.list {
                 let next_res = eval_scheme(&exp);
-                if let Unbound(exp) = &next_res{
+                if let Unbound(_exp) = &next_res{
                     if vals.len() > 0 {
-                        if let Unbound(Text(s)) = &vals[0]{
+                        if let SupportedFunction(s) = &vals[0]{
                             if s != "lambda"{
                                 return Unbound(ex.clone());
                             }
                         } else {
                             return Unbound(ex.clone());
-                        } }
-                    if let Text(s) = &exp{
-                        match s.as_str(){
-                            // Special treatement of cond and if
-                            "cond" => {
-                                if expr.list.len() % 2 != 1 { return SchemeError(); }
-                                let mut index = 1;
-                                while index < expr.list.len() {
-                                    match eval_scheme(&expr.list[index]){
-                                        Boolean(true) => { return eval_scheme(&expr.list[index + 1]); },
-                                        Boolean(false) => (),
-                                        // TODO make more efficient by not repeating conditions
-                                        // done before
-                                        Unbound(_exp) => {return Unbound(ex.clone());},
-                                        _ => {return SchemeError()},
-                                    }
-                                    index += 2;
-                                }
-                                return SchemeError();
-                            },
-                            "if" => {
-                                if expr.list.len() != 4 { return SchemeError(); }
-                                match eval_scheme(&expr.list[1]){
-                                    Boolean(true) => {return eval_scheme(&expr.list[2]);},
-                                    Boolean(false) => {return eval_scheme(&expr.list[3]);},
+                        } 
+                    }
+                }
+                if let SupportedFunction(s) = &next_res{
+                    match s.as_str(){
+                        // Special treatement of cond and if
+                        "cond" => {
+                            if expr.list.len() % 2 != 1 { return SchemeError(); }
+                            let mut index = 1;
+                            while index < expr.list.len() {
+                                match eval_scheme(&expr.list[index]){
+                                    Boolean(true) => { return eval_scheme(&expr.list[index + 1]); },
+                                    Boolean(false) => (),
+                                    // TODO make more efficient by not repeating conditions
+                                    // done before
                                     Unbound(_exp) => {return Unbound(ex.clone());},
-                                    _ => {return SchemeError()}
+                                    _ => {return SchemeError()},
                                 }
-                            },
-                            _ => (),
-                        }
+                                index += 2;
+                            }
+                            return SchemeError();
+                        },
+                        "if" => {
+                            if expr.list.len() != 4 { return SchemeError(); }
+                            match eval_scheme(&expr.list[1]){
+                                Boolean(true) => {return eval_scheme(&expr.list[2]);},
+                                Boolean(false) => {return eval_scheme(&expr.list[3]);},
+                                Unbound(_exp) => {return Unbound(ex.clone());},
+                                _ => {return SchemeError()}
+                            }
+                        },
+                        _ => (),
                     }
                 }
                 vals.push(next_res);
@@ -349,8 +381,8 @@ fn eval_scheme(ex: &Expr) -> Val{
 
 fn eval_scheme_with_def(ex: &Expr, definitions: &HashMap::<String, Val>) -> Val{
     let mut result = eval_scheme(ex);
-    while let Unbound(mut exp) = result{
-        for (replaced, replacement) in definitions{
+    while let Unbound(mut exp) = result {
+        for (replaced, replacement) in definitions {
             exp = exp.bind_val(&replaced, &replacement);
         }
         result = eval_scheme(&exp);
@@ -421,7 +453,7 @@ pub fn run_scheme(text: String) -> String {
                 result_string += format!("{}\n", b).as_str()
             },
             SchemeError() => result_string += "Error\n",
-            _ => result_string += "\n"
+            _ => result_string += ""
         }
     }
     return result_string;

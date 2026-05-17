@@ -74,4 +74,10 @@ mod tests{
         let s = String::from("(define (f x) x)\n(define x 1)\n(f 2)");
         assert_eq!(run_scheme(s), "2\n");
     }
+
+    #[test]
+    fn higher_order() {
+        let s = String::from("(define (foo x) (x 3 4))\n(foo +)");
+        assert_eq!(run_scheme(s), "7\n");
+    }
 }

@@ -6,3 +6,7 @@ edition = "2021"
 [dependencies]
 gcd = "2.3.0"
 lcm = "0.2.0"
+phf = { version = "0.13.1", features = ["macros"] }
+
+[features]
+macros = []
