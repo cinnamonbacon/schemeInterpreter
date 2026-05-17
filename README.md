@@ -53,7 +53,7 @@ Expands the expression to (+ 4 2) and then evaluates to 6.
 Putting this all together we can write a basic implementation of factorial
 ```scheme
 (define (fact n) (if (number=? n 0) 1 (* n (fact (- n 1)))))
-(+ x 2)
+(fact 4)
 ```
 
 You may also want to play around with lambda functions which are implemented. Consider the implementation of pairs.
