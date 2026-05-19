@@ -349,6 +349,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                                 }
                                 let mut expression = expr.list[2].clone();
                                 for (key,val) in dict {
+                                    if bindings.contains(key) { continue; }
                                     expression = expression.bind_val(key,val);
                                 }
                                 return Function(bindings, expression);
