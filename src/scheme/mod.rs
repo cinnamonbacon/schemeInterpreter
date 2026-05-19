@@ -19,7 +19,7 @@ static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
 enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
-    Unbound(Expr),
+    //Unbound(Expr),
     Function(Vec<String>, Expr),
     SupportedFunction(String),
     //Name(String),
@@ -28,7 +28,7 @@ enum Val{
 
 use Val::Number;
 use Val::Boolean;
-use Val::Unbound;
+//use Val::Unbound;
 use Val::Function;
 use Val::SupportedFunction;
 //use Val::Name;
@@ -39,7 +39,6 @@ impl Clone for Val{
         match self{
             Number(b, n, d) => Number(*b, *n, *d),
             Boolean(b) => Boolean(*b),
-            Unbound(exp) => Unbound(exp.clone()),
             Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
             SupportedFunction(s) => SupportedFunction(s.clone()),
             SchemeError() => SchemeError(),
@@ -245,7 +244,7 @@ where
     pt
 }
 
-fn apply_func(mut vals: Vec<Val>) -> Val{
+fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
     let func = vals.remove(0);
     match func {
         SupportedFunction(s) =>
@@ -268,53 +267,24 @@ fn apply_func(mut vals: Vec<Val>) -> Val{
                     }
                     SchemeError()
                 },
-                "lambda" => {
-                    let mut bindings = Vec::new();
-                    if let Unbound(Tree(binding_list)) = &vals[0]{
-                        for binding in &*binding_list.list{
-                            if let Text(s) = binding {
-                                bindings.push(s.to_string());
-                            } else {
-                                return SchemeError();
-                            }
-                        }
-                        let expression = match &vals[1]{
-                            Unbound(expr) => expr.clone(),
-                            other => Bound(Box::new(other.clone())),
-                        };
-                        Function(bindings, expression)
-                    } else {
-                        SchemeError()
-                    }
-                }
-                _ => todo!()
+                _ => SchemeError(),
             }
-        Unbound(Text(s)) => {
-            let mut tree = Vec::new();
-            tree.push(Text(s.to_string()));
-            for v in &vals{
-                tree.push(match v{
-                    Unbound(expr) => expr.clone(),
-                    other => Bound(Box::new(other.clone())),
-                });
-            }
-            Unbound(Tree(Box::new(ParseTree{ list: tree })))
-        }
-        Function(bindings, mut exp) => {
+        Function(bindings, exp) => {
             if bindings.len() != vals.len(){
                 return SchemeError();
             }
+            let mut new_dict = dict.clone();
             for it in bindings.iter().zip(vals.iter()){
                 let (binding, val) = it;
-                exp = exp.bind_val(&binding, &val);
+                new_dict.insert(binding.to_string(), val.clone());
             }
-            eval_scheme(&exp)
+            eval_scheme(&exp, &new_dict)
         }
         _ => SchemeError(),
     }
 }
 
-fn eval_scheme(ex: &Expr) -> Val{
+fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
     match ex{
         Text(txt) => {
             if txt == "true" { Boolean(true) }
@@ -323,38 +293,37 @@ fn eval_scheme(ex: &Expr) -> Val{
             else if SUPPORTED_OPPERATIONS.contains(txt as &str) { 
                 SupportedFunction(txt.to_string())
             }
-            else{Unbound(Text(String::from(txt)))}
+            else if dict.contains_key(txt) {
+                dict.get(txt).unwrap().clone()
+            }
+            else{ SchemeError() }
         },
-        Bound(v) => *v.clone(),
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();
             for exp in &expr.list {
-                let next_res = eval_scheme(&exp);
-                if let Unbound(_exp) = &next_res{
+                let next_res = eval_scheme(&exp, dict);
+                if let SchemeError() = next_res {
                     if vals.len() > 0 {
                         if let SupportedFunction(s) = &vals[0]{
                             if s != "lambda"{
-                                return Unbound(ex.clone());
+                                return SchemeError();
                             }
                         } else {
-                            return Unbound(ex.clone());
+                            return SchemeError();
                         } 
                     }
                 }
                 if let SupportedFunction(s) = &next_res{
                     match s.as_str(){
-                        // Special treatement of cond and if
+                        // Special treatement of cond and if and lambda
                         "cond" => {
                             if expr.list.len() % 2 != 1 { return SchemeError(); }
                             let mut index = 1;
                             while index < expr.list.len() {
-                                match eval_scheme(&expr.list[index]){
-                                    Boolean(true) => { return eval_scheme(&expr.list[index + 1]); },
+                                match eval_scheme(&expr.list[index], dict){
+                                    Boolean(true) => { return eval_scheme(&expr.list[index + 1], dict); },
                                     Boolean(false) => (),
-                                    // TODO make more efficient by not repeating conditions
-                                    // done before
-                                    Unbound(_exp) => {return Unbound(ex.clone());},
-                                    _ => {return SchemeError()},
+                                    _ => { return SchemeError() },
                                 }
                                 index += 2;
                             }
@@ -362,40 +331,50 @@ fn eval_scheme(ex: &Expr) -> Val{
                         },
                         "if" => {
                             if expr.list.len() != 4 { return SchemeError(); }
-                            match eval_scheme(&expr.list[1]){
-                                Boolean(true) => {return eval_scheme(&expr.list[2]);},
-                                Boolean(false) => {return eval_scheme(&expr.list[3]);},
-                                Unbound(_exp) => {return Unbound(ex.clone());},
-                                _ => {return SchemeError()}
+                            match eval_scheme(&expr.list[1], dict){
+                                Boolean(true) => { return eval_scheme(&expr.list[2], dict); },
+                                Boolean(false) => { return eval_scheme(&expr.list[3], dict); },
+                                _ => { return SchemeError() }
                             }
                         },
+                        "lambda" => {
+                            let mut bindings = Vec::new();
+                            if let Tree(binding_list) = &expr.list[1] {
+                                for binding in &*binding_list.list {
+                                    if let Text(s) = binding {
+                                        bindings.push(s.to_string());
+                                    } else {
+                                        return SchemeError();
+                                    }
+                                }
+                                let mut expression = expr.list[2].clone();
+                                for (key,val) in dict {
+                                    if bindings.contains(key) { continue; }
+                                    expression = expression.bind_val(key,val);
+                                }
+                                return Function(bindings, expression);
+                            } else {
+                                return SchemeError();
+                            }
+                        }
                         _ => (),
                     }
                 }
                 vals.push(next_res);
             }
-            apply_func(vals)
+            apply_func(vals, dict)
         }
+        Bound(v) => *v.clone()
     }
 }
 
-fn eval_scheme_with_def(ex: &Expr, definitions: &HashMap::<String, Val>) -> Val{
-    let mut result = eval_scheme(ex);
-    while let Unbound(mut exp) = result {
-        for (replaced, replacement) in definitions {
-            exp = exp.bind_val(&replaced, &replacement);
-        }
-        result = eval_scheme(&exp);
-    }
-    result
-}
 
 fn add_definition(expr: &Expr, definitions: &mut HashMap<String, Val>) -> bool{
     if let Tree(tr) = expr {
         if let Text(s) = &tr.list[0]{
             if s == "define" {
                 match &tr.list[1] {
-                    Text(var) => {definitions.insert(var.to_string(), eval_scheme_with_def(&tr.list[2], &definitions));}
+                    Text(var) => {definitions.insert(var.to_string(), eval_scheme(&tr.list[2], &definitions));}
                     Tree(bindings) => {
                         if let Text(var) = &bindings.list[0]{
                             let mut bounded = Vec::new();
@@ -410,24 +389,14 @@ fn add_definition(expr: &Expr, definitions: &mut HashMap<String, Val>) -> bool{
                             definitions.insert(var.to_string(), Function(bounded, tr.list[2].clone()));
                         }
                     }
-                    _ => ()
+                    Bound(_v) => () // Should not get here
                 }
-                true
-            }
-            else {
-                false
+                return true;
             }
         }
-        else {
-            false
-        }
     }
-    else {
-        false
-    }
+    return false;
 }
-
-
 
 pub fn run_scheme(text: String) -> String {
     let parsed = tokenize_scheme(&text);
@@ -440,9 +409,7 @@ pub fn run_scheme(text: String) -> String {
     for expr in tree.list{
         if add_definition(&expr, &mut definitions) {continue}
 
-        let result = eval_scheme_with_def(&expr, &definitions);
-
-
+        let result = eval_scheme(&expr, &definitions);
 
         match result {
             Number(neg, n, d) => {

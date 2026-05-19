@@ -76,6 +76,12 @@ mod tests{
     }
 
     #[test]
+    fn scoped_def_lambdas() {
+        let s = String::from("(define x 2)\n((lambda (x y) (+ x ((lambda (y) (+ x y)) (+ x y)))) 1 x)\n");
+        assert_eq!(run_scheme(s), "5\n");
+    }
+
+    #[test]
     fn higher_order() {
         let s = String::from("(define (foo x) (x 3 4))\n(foo +)");
         assert_eq!(run_scheme(s), "7\n");
