@@ -86,4 +86,17 @@ mod tests{
         let s = String::from("(define (foo x) (x 3 4))\n(foo +)");
         assert_eq!(run_scheme(s), "7\n");
     }
+
+    #[test]
+    fn division() {
+        let s = String::from("(/ 4 2 2)\n(/ 3 6)");
+        assert_eq!(run_scheme(s), "1\n1/2\n");
+    }
+
+
+    #[test]
+    fn div_by_zero() {
+        let s = String::from("(/ 4 0)");
+        assert_eq!(run_scheme(s), "Error\n");
+    }
 }
