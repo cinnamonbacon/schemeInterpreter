@@ -1,236 +1,16 @@
 mod scheme_tests;
+mod value;
+mod expression;
 
-use std::ops;
 use std::collections::HashMap;
-use phf::{phf_set, Set};
 
-use gcd::Gcd;
+use value::Val;
+use value::Val::*;
+use value::SUPPORTED_OPPERATIONS;
 
-static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
-    "+",
-    "-",
-    "*",
-    "/",
-    "number=?",
-    "if",
-    "cond",
-    "lambda",
-};
-
-
-#[derive(Debug)]
-enum Val{
-    Number(bool, u32, u32),
-    Boolean(bool),
-    //Unbound(Expr),
-    Function(Vec<String>, Expr),
-    SupportedFunction(String),
-    //Name(String),
-    SchemeError(),
-}
-
-use Val::Number;
-use Val::Boolean;
-//use Val::Unbound;
-use Val::Function;
-use Val::SupportedFunction;
-//use Val::Name;
-use Val::SchemeError;
-
-impl Clone for Val{
-    fn clone(&self) -> Self {
-        match self{
-            Number(b, n, d) => Number(*b, *n, *d),
-            Boolean(b) => Boolean(*b),
-            Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
-            SupportedFunction(s) => SupportedFunction(s.clone()),
-            SchemeError() => SchemeError(),
-        }
-    }
-}
-
-
-#[derive(Debug)]
-enum Expr{
-    Text(String),
-    Bound(Box<Val>),
-    Tree(Box<ParseTree>),
-}
-use Expr::Text;
-use Expr::Bound;
-use Expr::Tree;
-
-impl Clone for Expr{
-    fn clone(&self) -> Self {
-        match self{
-            Text(s)=> Text(s.clone()),
-            Bound(v) => Bound(Box::new(*v.clone())),
-            Tree(pt) => {
-                let mut ret = ParseTree{ list: Vec::new() };
-                for lexp in &pt.list{
-                    ret.list.push(lexp.clone());
-                }
-                Tree(Box::new(ret))
-            }
-        }
-    }
-}
-
-impl Expr{
-    fn bind_val(self, replace: &String, v: &Val) -> Expr{
-        match self{
-            Text(s) => if s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
-            Bound(b) => {
-                if let Function(bindings, expr) = *b{
-                    if let Some(_) = bindings.iter().position(|s| s == replace){
-                        Bound(Box::new(Function(bindings, expr)))
-                    }
-                    else{
-                        Bound(Box::new(Function(bindings, expr.bind_val(replace, v))))
-                    }
-                }
-                else{
-                    Bound(b)
-                }
-            }
-            Tree(pt) => {
-                let mut ret = ParseTree{ list: Vec::new() };
-                if let Text(s) = &pt.list[0] {
-                    if s == "lambda" {
-                        if let Tree(bindings) = &pt.list[1] {
-                            for b in bindings.list.clone(){
-                                if let Text(binding_name) = b{
-                                    if binding_name == *replace { 
-                                        return Tree(pt) 
-                                    };
-                                }
-                            }
-                        }
-                    }
-                }
-                for lexp in pt.list{
-                    ret.list.push(lexp.bind_val(replace, v));
-                }
-                Tree(Box::new(ret))
-            },
-        }
-    }
-}
-
-#[derive(Debug)]
-struct ParseTree{
-    list: Vec<Expr>,
-}
-
-
-impl ops::Add<Val> for Val {
-    type Output = Val;
-
-    fn add(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, on, od) = rhs{
-                let mut new_denom = d * od / d.gcd(od);
-                let mut n = n * new_denom / od;
-                let on = on * new_denom / d;
-                let mut neg = neg;
-
-                if n > on {
-                    n = if neg == oneg {n + on} else {n - on};
-                }
-                else {
-                    n = if neg == oneg {on + n} else {on - n};
-                    neg = oneg;
-                }
-
-                if n == 0 {
-                    new_denom = 1;
-                    neg = false;
-                }
-
-                return Number(neg, n, new_denom);
-            }
-        }
-        SchemeError()
-    }
-}
-
-impl ops::Sub<Val> for Val {
-    type Output = Val;
-
-    fn sub(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, on, od) = rhs{
-                let mut new_denom = d * od / d.gcd(od);
-                let mut n = n * new_denom / od;
-                let on = on * new_denom / d;
-                let mut neg = neg;
-                let oneg = !oneg;
-
-                if n > on {
-                    n = if neg == oneg {n + on} else {n - on};
-                }
-                else {
-                    n = if neg == oneg {on + n} else {on - n};
-                    neg = oneg;
-                }
-
-                if n == 0 {
-                    new_denom = 1;
-                    neg = false;
-                }
-
-                return Number(neg, n, new_denom);
-            }
-        }
-        SchemeError()
-    }
-}
-
-impl ops::Mul<Val> for Val {
-    type Output = Val;
-
-    fn mul(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, on, od) = rhs{
-                let n = n * on;
-                let d = d * od;
-                let common = n.gcd(d);
-                let n = n / common;
-                let d = d / common;
-
-                let neg = neg != oneg;
-                return Number(neg, n, d);
-            }
-        }
-        SchemeError()
-    }
-}
-
-impl ops::Div<Val> for Val {
-    type Output = Val;
-
-    fn div(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, od, on) = rhs{
-                let n = n * on;
-                let d = d * od;
-                let common = n.gcd(d);
-                let n = n / common;
-                let d = d / common;
-
-                let neg = neg != oneg;
-                return Number(neg, n, d);
-            }
-        }
-        SchemeError()
-    }
-}
-
-impl ParseTree{
-    fn add_expr(&mut self, ex: Expr){
-        self.list.push(ex);
-    }
-}
+use expression::ParseTree;
+use expression::Expr;
+use expression::Expr::*;
 
 fn tokenize_scheme(text: &str)-> Vec<&str> {
     let mut parsed = Vec::new();
@@ -253,7 +33,7 @@ where
     let mut pt = ParseTree{ list: Vec::<Expr>::new()};
     let mut m_ch = parsed.next();
     while let Some(ch) = m_ch {
-        if ch == ")" { 
+        if ch == ")" {
             break;
         }
         if ch == "(" {
@@ -321,7 +101,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
             if txt == "true" { Boolean(true) }
             else if txt == "false" { Boolean(false) }
             else if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) }
-            else if SUPPORTED_OPPERATIONS.contains(txt as &str) { 
+            else if SUPPORTED_OPPERATIONS.contains(txt as &str) {
                 SupportedFunction(txt.to_string())
             }
             else if dict.contains_key(txt) {
@@ -341,7 +121,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                             }
                         } else {
                             return SchemeError();
-                        } 
+                        }
                     }
                 }
                 if let SupportedFunction(s) = &next_res{
