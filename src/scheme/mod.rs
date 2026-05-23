@@ -1,3 +1,5 @@
+mod scheme_tests;
+
 use std::ops;
 use std::collections::HashMap;
 use phf::{phf_set, Set};
@@ -8,6 +10,7 @@ static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "+",
     "-",
     "*",
+    "/",
     "number=?",
     "if",
     "cond",
@@ -203,6 +206,26 @@ impl ops::Mul<Val> for Val {
     }
 }
 
+impl ops::Div<Val> for Val {
+    type Output = Val;
+
+    fn div(self, rhs: Val) -> Val {
+        if let Number(neg, n ,d) = self{
+            if let Number(oneg, od, on) = rhs{
+                let n = n * on;
+                let d = d * od;
+                let common = n.gcd(d);
+                let n = n / common;
+                let d = d / common;
+
+                let neg = neg != oneg;
+                return Number(neg, n, d);
+            }
+        }
+        SchemeError()
+    }
+}
+
 impl ParseTree{
     fn add_expr(&mut self, ex: Expr){
         self.list.push(ex);
@@ -258,6 +281,14 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                     sum
                 }
                 "*" => vals.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
+                "/" => {
+                    let mut quotient = vals[0].clone();
+                    for val in vals.into_iter().skip(1){
+                        if let Number(false, 0, 1) = val { return SchemeError(); }
+                        quotient = quotient / val;
+                    }
+                    quotient
+                }
                 "number=?" => {
                     if vals.len() != 2 { return SchemeError(); }
                     if let Number(neg, n, d) = vals[0]{
@@ -414,7 +445,7 @@ pub fn run_scheme(text: String) -> String {
         match result {
             Number(neg, n, d) => {
                 result_string += format!("{}{n}{}\n", if neg {"-"} else {""},
-                    if d != 1 {d.to_string()} else {"".to_string()}).as_str()
+                    if d != 1 {"/".to_string() + &d.to_string()} else {"".to_string()}).as_str()
             },
             Boolean(b) => {
                 result_string += format!("{}\n", b).as_str()

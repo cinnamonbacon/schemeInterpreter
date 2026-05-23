@@ -1,5 +1,4 @@
 mod scheme;
-mod scheme_tests;
 
 use std::env;
 use scheme::run_scheme;

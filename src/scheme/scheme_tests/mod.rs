@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests{
-    use crate::scheme::run_scheme;
+    use crate::run_scheme;
 
     #[test]
     fn basic_expr() {
@@ -85,5 +85,22 @@ mod tests{
     fn higher_order() {
         let s = String::from("(define (foo x) (x 3 4))\n(foo +)");
         assert_eq!(run_scheme(s), "7\n");
+    }
+
+    #[test]
+    fn division() {
+        let s = String::from("(/ 4 2 2)\n(/ 3 6)");
+        assert_eq!(run_scheme(s), "1\n1/2\n");
+    }
+
+
+    #[test]
+    fn div_by_zero() {
+        let s = String::from("(/ 4 0)");
+        assert_eq!(run_scheme(s), "Error\n");
+        let s = String::from("(/ 0 0)");
+        assert_eq!(run_scheme(s), "Error\n");
+        let s = String::from("(/ 0 4)");
+        assert_eq!(run_scheme(s), "0\n");
     }
 }

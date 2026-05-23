@@ -24,17 +24,19 @@ In the folder examples there are some files that you can try running the interpr
 
 
 The following commands are implemented as of now:
-adding, multiplication, and subtraction
+adding, multiplication, subtraction, and division
 ```scheme
-(+ 3 4 (* 2 (- 3 4)))
+(/ (+ 3 4 (* 2 (- 3 4))) 5)
 ```
-For example read as 3 + 4 + (2 * (3 - 4)) reduces to 5.
+For example read as (3 + 4 + (2 * (3 - 4))) / 5 reduces to 1.
 
 The boolean statement number=? and if and cond are implemented. Consider the examples
 ```scheme
 (if (number=? 1 2) 1 2)
 ```
 As 1 does not equal 2 the second expression is taken and the result is 2.
+
+Cond takes an alternating sequence of boolean statements and values and for the first boolean that evaluates to true it returns the next value. Note that if and cond only evaluate the returned value allowing for reccursion.
 
 Constants are also implemented. For example
 ```scheme
