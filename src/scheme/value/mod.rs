@@ -3,6 +3,7 @@ use crate::scheme::Expr;
 use std::ops;
 use phf::{phf_set, Set};
 use gcd::Gcd;
+use std::rc::Rc;
 
 pub static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "+",
@@ -20,7 +21,7 @@ pub enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
     Function(Vec<String>, Expr),
-    SupportedFunction(String),
+    SupportedFunction(Rc<String>),
     SchemeError(),
 }
 
