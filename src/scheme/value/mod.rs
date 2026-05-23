@@ -17,6 +17,8 @@ pub static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "cons",
     "car",
     "cdr",
+    "empty?",
+    "list",
 };
 
 #[derive(Debug)]
@@ -26,6 +28,7 @@ pub enum Val{
     Function(Vec<String>, Expr),
     SupportedFunction(Rc<String>),
     Pair(Rc<Val>, Rc<Val>),
+    Empty(),
     SchemeError(),
 }
 
@@ -39,6 +42,7 @@ impl Clone for Val{
             Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
             SupportedFunction(s) => SupportedFunction(s.clone()),
             Pair(x,y) => Pair(x.clone(), y.clone()),
+            Empty() => Empty(),
             SchemeError() => SchemeError(),
         }
     }
@@ -163,6 +167,7 @@ impl ToString for Val {
             Pair(x, y) => {
                 format!("Pair({},{})", x.to_string(), y.to_string())
             },
+            Empty() => "empty".to_string(),
             SchemeError() => "Error".to_string(),
         }
     }

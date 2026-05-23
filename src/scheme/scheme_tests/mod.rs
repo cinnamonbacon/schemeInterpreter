@@ -113,4 +113,17 @@ mod tests{
         let s = String::from("(cons 1 2)\n");
         assert_eq!(run_scheme(s), "Pair(1,2)\n");
     }
+
+    #[test]
+    fn empty() {
+        let s = String::from("(empty? empty)\n(empty? 1)\n(empty? false)\n(empty? true)\n
+            (empty? (cons 1 2))\n(empty? 1 2)\n(empty? (lambda () empty))\n(empty? ((lambda () empty)))");
+        assert_eq!(run_scheme(s), "true\nfalse\nfalse\nfalse\nfalse\nError\nfalse\ntrue\n");
+    }
+
+    #[test]
+    fn list() {
+        let s = String::from("(list 1 2 3)\n(empty? (cdr (cdr (cdr (list 1 2 3)))))\n");
+        assert_eq!(run_scheme(s), "Pair(1,Pair(2,Pair(3,empty)))\ntrue\n");
+    }
 }
