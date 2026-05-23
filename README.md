@@ -75,10 +75,23 @@ But the time of this grows exponentially as we are redoing a bunch of work when 
 (define (fib n) (car (fib-helper n)))
 ```
 
+Lists are a nesting of pairs where the first element in each pair is the first of the list and the rest of the elements are stored in the second part of the list. There is also a special list that every list contains which is the empty list. "empty" evaluates to this list and (empty? x) evaluates if something is the empty list. It is false for everything except the empty list
+```
+(empty? empty)
+(empty? 3)
+```
+The first one gives true where the second gives false. You could create lists with cons such as
+```
+(cons 1 (cons 2 (cons 3 empty)))
+```
+but there is a shorthand. That is the list function which takes an arbitrary number of values and creates a list out of them. The value above can similarly be created as
+```
+(list 1 2 3)
+```
+
 You may also want to play around with lambda functions which are implemented. Consider an alternative implementation of pairs.
 ```scheme
 (define (pair x y) (lambda (b) (if b x y)))
 (define (first p) (p true))
 (define (second p) (p false))
 ```
-Lists can then be implemented from here by nesting pairs.

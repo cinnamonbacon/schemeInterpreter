@@ -123,7 +123,7 @@ mod tests{
 
     #[test]
     fn list() {
-        let s = String::from("(list 1 2 3)\n(empty? (cdr (cdr (cdr (list 1 2 3)))))\n");
-        assert_eq!(run_scheme(s), "Pair(1,Pair(2,Pair(3,empty)))\ntrue\n");
+        let s = String::from("(list 1 2 3)\n(empty? (cdr (cdr (cdr (list 1 2 3)))))\n(empty? (list))\n");
+        assert_eq!(run_scheme(s), "Pair(1,Pair(2,Pair(3,empty)))\ntrue\ntrue\n");
     }
 }
