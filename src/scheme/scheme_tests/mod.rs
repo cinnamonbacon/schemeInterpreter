@@ -122,8 +122,11 @@ mod tests{
     }
 
     #[test]
-    fn list() {
+    fn lists() {
         let s = String::from("(list 1 2 3)\n(empty? (cdr (cdr (cdr (list 1 2 3)))))\n(empty? (list))\n");
         assert_eq!(run_scheme(s), "Pair(1,Pair(2,Pair(3,empty)))\ntrue\ntrue\n");
+        let s = String::from("(define (list-add lst) (if (empty? lst) 0 (+ (car lst) (list-add (cdr lst)))))\n
+            (list-add (list 1 2 3 4))\n");
+        assert_eq!(run_scheme(s), "10\n");
     }
 }
