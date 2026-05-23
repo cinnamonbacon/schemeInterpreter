@@ -103,4 +103,14 @@ mod tests{
         let s = String::from("(/ 0 4)");
         assert_eq!(run_scheme(s), "0\n");
     }
+
+    #[test]
+    fn pair() {
+        let s = String::from("(car (cons 1 2))\n(cdr (cons 1 2))\n");
+        assert_eq!(run_scheme(s), "1\n2\n");
+        let s = String::from("(cdr (car (cons (cons 1 2) (cons 3 4))))\n");
+        assert_eq!(run_scheme(s), "2\n");
+        let s = String::from("(cons 1 2)\n");
+        assert_eq!(run_scheme(s), "Pair(1,2)\n");
+    }
 }

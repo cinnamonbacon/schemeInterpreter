@@ -78,6 +78,24 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                     }
                     SchemeError()
                 },
+                "cons" => {
+                    if vals.len() != 2 { return SchemeError(); }
+                    Pair(vals[0].clone().into(), vals[1].clone().into())
+                }
+                "car" => {
+                    if vals.len() != 1 { return SchemeError(); }
+                    if let Pair(x,_y) = &vals[0] {
+                        (**x).clone()
+                    }
+                    else { SchemeError() }
+                }
+                "cdr" => {
+                    if vals.len() != 1 { return SchemeError(); }
+                    if let Pair(_x,y) = &vals[0] {
+                        (**y).clone()
+                    }
+                    else { SchemeError() }
+                }
                 _ => SchemeError(),
             }
         Function(bindings, exp) => {
@@ -222,17 +240,8 @@ pub fn run_scheme(text: String) -> String {
 
         let result = eval_scheme(&expr, &definitions);
 
-        match result {
-            Number(neg, n, d) => {
-                result_string += format!("{}{n}{}\n", if neg {"-"} else {""},
-                    if d != 1 {"/".to_string() + &d.to_string()} else {"".to_string()}).as_str()
-            },
-            Boolean(b) => {
-                result_string += format!("{}\n", b).as_str()
-            },
-            SchemeError() => result_string += "Error\n",
-            _ => result_string += ""
-        }
+        result_string += &result.to_string();
+        result_string += "\n";
     }
     return result_string;
 }

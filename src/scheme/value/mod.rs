@@ -14,6 +14,9 @@ pub static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "if",
     "cond",
     "lambda",
+    "cons",
+    "car",
+    "cdr",
 };
 
 #[derive(Debug)]
@@ -22,6 +25,7 @@ pub enum Val{
     Boolean(bool),
     Function(Vec<String>, Expr),
     SupportedFunction(Rc<String>),
+    Pair(Rc<Val>, Rc<Val>),
     SchemeError(),
 }
 
@@ -34,6 +38,7 @@ impl Clone for Val{
             Boolean(b) => Boolean(*b),
             Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
             SupportedFunction(s) => SupportedFunction(s.clone()),
+            Pair(x,y) => Pair(x.clone(), y.clone()),
             SchemeError() => SchemeError(),
         }
     }
@@ -140,5 +145,25 @@ impl ops::Div<Val> for Val {
             }
         }
         SchemeError()
+    }
+}
+
+impl ToString for Val {
+    fn to_string(&self) -> String {
+        match self {
+            Number(neg, n, d) => {
+                format!("{}{n}{}", if *neg {"-"} else {""},
+                    if *d != 1 {"/".to_string() + &d.to_string()} else {"".to_string()})
+            },
+            Boolean(b) => {
+                format!("{}", b)
+            },
+            Function(_bindings, _expr) => "Function".to_string(),
+            SupportedFunction(_s) => "Function".to_string(),
+            Pair(x, y) => {
+                format!("Pair({},{})", x.to_string(), y.to_string())
+            },
+            SchemeError() => "Error".to_string(),
+        }
     }
 }
