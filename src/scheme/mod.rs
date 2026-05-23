@@ -64,51 +64,51 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                 "/" => {
                     let mut quotient = vals[0].clone();
                     for val in vals.into_iter().skip(1){
-                        if let Number(false, 0, 1) = val { return SchemeError(); }
+                        if let Number(false, 0, 1) = val { return SchemeError("Divide by zero".to_string()); }
                         quotient = quotient / val;
                     }
                     quotient
                 }
                 "number=?" => {
-                    if vals.len() != 2 { return SchemeError(); }
+                    if vals.len() != 2 { return SchemeError("Wrong number of operands for number=?".to_string()); }
                     if let Number(neg, n, d) = vals[0]{
                         if let Number(oneg, on, od) = vals[1]{
                             return Boolean(neg == oneg && n == on && d == od);
                         }
                     }
-                    SchemeError()
+                    SchemeError("Applied number=? to non Number values".to_string())
                 },
                 "cons" => {
-                    if vals.len() != 2 { return SchemeError(); }
+                    if vals.len() != 2 { return SchemeError("Wrong number of operands for cons".to_string()); }
                     Pair(vals[0].clone().into(), vals[1].clone().into())
                 },
                 "car" => {
-                    if vals.len() != 1 { return SchemeError(); }
+                    if vals.len() != 1 { return SchemeError("Wrong number of operands for car".to_string()); }
                     if let Pair(x,_y) = &vals[0] {
                         (**x).clone()
                     }
-                    else { SchemeError() }
+                    else { SchemeError("Applied car to non pair value".to_string()) }
                 },
                 "cdr" => {
-                    if vals.len() != 1 { return SchemeError(); }
+                    if vals.len() != 1 { return SchemeError("Wrong number of operands for cdr".to_string()); }
                     if let Pair(_x,y) = &vals[0] {
                         (**y).clone()
                     }
-                    else { SchemeError() }
+                    else { SchemeError("Applied cdr to non pair value".to_string()) }
                 },
                 "empty?" => {
-                    if vals.len() != 1 { return SchemeError(); }
+                    if vals.len() != 1 { return SchemeError("Wrong number of operands for empty?".to_string()); }
                     if let Empty() = &vals[0] { Boolean(true) }
                     else { Boolean(false) }
                 },
                 "list" => {
                     vals.into_iter().rfold(Empty(), |x, y| Pair(y.clone().into(), x.clone().into()))
                 },
-                _ => SchemeError(),
+                _ => SchemeError("Supported function not implemented".to_string()),
             }
         Function(bindings, exp) => {
             if bindings.len() != vals.len(){
-                return SchemeError();
+                return SchemeError("Wrong number of operands for function".to_string());
             }
             let mut new_dict = dict.clone();
             for it in bindings.iter().zip(vals.iter()){
@@ -117,7 +117,8 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
             }
             eval_scheme(&exp, &new_dict)
         }
-        _ => SchemeError(),
+        SchemeError(s) => SchemeError(s),
+        x => SchemeError(format!("Tried to apply non function {}", x.to_string())),
     }
 }
 
@@ -134,20 +135,20 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
             else if dict.contains_key(&**txt) {
                 dict.get(&**txt).unwrap().clone()
             }
-            else{ SchemeError() }
+            else{ SchemeError(format!("The string {} does is not defined and is not supported", **txt)) }
         },
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();
             for exp in &expr.list {
                 let next_res = eval_scheme(&exp, dict);
-                if let SchemeError() = next_res {
+                if let SchemeError(err) = &next_res {
                     if vals.len() > 0 {
                         if let SupportedFunction(s) = &vals[0]{
                             if **s != "lambda"{
-                                return SchemeError();
+                                return SchemeError(err.to_string());
                             }
                         } else {
-                            return SchemeError();
+                            return SchemeError(err.to_string());
                         }
                     }
                 }
@@ -155,24 +156,26 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                     match (**s).as_str(){
                         // Special treatement of cond and if and lambda
                         "cond" => {
-                            if expr.list.len() % 2 != 1 { return SchemeError(); }
+                            if expr.list.len() % 2 != 1 { return SchemeError("Odd number of operands for cond".to_string()); }
                             let mut index = 1;
                             while index < expr.list.len() {
                                 match eval_scheme(&expr.list[index], dict){
                                     Boolean(true) => { return eval_scheme(&expr.list[index + 1], dict); },
                                     Boolean(false) => (),
-                                    _ => { return SchemeError() },
+                                    SchemeError(s) => { return SchemeError(s) },
+                                    _ => { return SchemeError("Non boolean operand for cond".to_string()) },
                                 }
                                 index += 2;
                             }
-                            return SchemeError();
+                            return SchemeError("No true clause of cond".to_string());
                         },
                         "if" => {
-                            if expr.list.len() != 4 { return SchemeError(); }
+                            if expr.list.len() != 4 { return SchemeError("Wrong number of operands for if".to_string()); }
                             match eval_scheme(&expr.list[1], dict){
                                 Boolean(true) => { return eval_scheme(&expr.list[2], dict); },
                                 Boolean(false) => { return eval_scheme(&expr.list[3], dict); },
-                                _ => { return SchemeError() }
+                                SchemeError(s) => { return SchemeError(s); },
+                                _ => { return SchemeError("Second operand for if is not a boolean".to_string()); },
                             }
                         },
                         "lambda" => {
@@ -182,7 +185,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                                     if let Text(s) = binding {
                                         bindings.push(s.to_string());
                                     } else {
-                                        return SchemeError();
+                                        return SchemeError("Binding of lambda is not a string".to_string());
                                     }
                                 }
                                 let mut expression = expr.list[2].clone();
@@ -192,7 +195,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                                 }
                                 return Function(bindings, expression);
                             } else {
-                                return SchemeError();
+                                return SchemeError("Second operand of lamdba is not a list of bindings".to_string());
                             }
                         }
                         _ => (),

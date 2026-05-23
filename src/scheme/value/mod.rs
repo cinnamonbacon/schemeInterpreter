@@ -29,7 +29,7 @@ pub enum Val{
     SupportedFunction(Rc<String>),
     Pair(Rc<Val>, Rc<Val>),
     Empty(),
-    SchemeError(),
+    SchemeError(String),
 }
 
 use Val::*;
@@ -43,7 +43,7 @@ impl Clone for Val{
             SupportedFunction(s) => SupportedFunction(s.clone()),
             Pair(x,y) => Pair(x.clone(), y.clone()),
             Empty() => Empty(),
-            SchemeError() => SchemeError(),
+            SchemeError(s) => SchemeError(s.clone()),
         }
     }
 }
@@ -76,7 +76,7 @@ impl ops::Add<Val> for Val {
                 return Number(neg, n, new_denom);
             }
         }
-        SchemeError()
+        SchemeError("Adding values that are not numbers".to_string())
     }
 }
 
@@ -108,7 +108,7 @@ impl ops::Sub<Val> for Val {
                 return Number(neg, n, new_denom);
             }
         }
-        SchemeError()
+        SchemeError("Subtracting values that are not numbers".to_string())
     }
 }
 
@@ -128,7 +128,7 @@ impl ops::Mul<Val> for Val {
                 return Number(neg, n, d);
             }
         }
-        SchemeError()
+        SchemeError("Multiplying values that are not numbers".to_string())
     }
 }
 
@@ -148,7 +148,7 @@ impl ops::Div<Val> for Val {
                 return Number(neg, n, d);
             }
         }
-        SchemeError()
+        SchemeError("Dividing values that are not numbers".to_string())
     }
 }
 
@@ -168,7 +168,9 @@ impl ToString for Val {
                 format!("Pair({},{})", x.to_string(), y.to_string())
             },
             Empty() => "empty".to_string(),
-            SchemeError() => "Error".to_string(),
+            SchemeError(s) => {
+                format!("Error: {}", s)
+            }
         }
     }
 }

@@ -97,9 +97,9 @@ mod tests{
     #[test]
     fn div_by_zero() {
         let s = String::from("(/ 4 0)");
-        assert_eq!(run_scheme(s), "Error\n");
+        assert_eq!(run_scheme(s), "Error: Divide by zero\n");
         let s = String::from("(/ 0 0)");
-        assert_eq!(run_scheme(s), "Error\n");
+        assert_eq!(run_scheme(s), "Error: Divide by zero\n");
         let s = String::from("(/ 0 4)");
         assert_eq!(run_scheme(s), "0\n");
     }
@@ -118,7 +118,7 @@ mod tests{
     fn empty() {
         let s = String::from("(empty? empty)\n(empty? 1)\n(empty? false)\n(empty? true)\n
             (empty? (cons 1 2))\n(empty? 1 2)\n(empty? (lambda () empty))\n(empty? ((lambda () empty)))");
-        assert_eq!(run_scheme(s), "true\nfalse\nfalse\nfalse\nfalse\nError\nfalse\ntrue\n");
+        assert_eq!(run_scheme(s), "true\nfalse\nfalse\nfalse\nfalse\nError: Wrong number of operands for empty?\nfalse\ntrue\n");
     }
 
     #[test]
