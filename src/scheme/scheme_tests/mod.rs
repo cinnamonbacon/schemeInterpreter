@@ -103,4 +103,30 @@ mod tests{
         let s = String::from("(/ 0 4)");
         assert_eq!(run_scheme(s), "0\n");
     }
+
+    #[test]
+    fn pair() {
+        let s = String::from("(car (cons 1 2))\n(cdr (cons 1 2))\n");
+        assert_eq!(run_scheme(s), "1\n2\n");
+        let s = String::from("(cdr (car (cons (cons 1 2) (cons 3 4))))\n");
+        assert_eq!(run_scheme(s), "2\n");
+        let s = String::from("(cons 1 2)\n");
+        assert_eq!(run_scheme(s), "Pair(1,2)\n");
+    }
+
+    #[test]
+    fn empty() {
+        let s = String::from("(empty? empty)\n(empty? 1)\n(empty? false)\n(empty? true)\n
+            (empty? (cons 1 2))\n(empty? 1 2)\n(empty? (lambda () empty))\n(empty? ((lambda () empty)))");
+        assert_eq!(run_scheme(s), "true\nfalse\nfalse\nfalse\nfalse\nError\nfalse\ntrue\n");
+    }
+
+    #[test]
+    fn lists() {
+        let s = String::from("(list 1 2 3)\n(empty? (cdr (cdr (cdr (list 1 2 3)))))\n(empty? (list))\n");
+        assert_eq!(run_scheme(s), "Pair(1,Pair(2,Pair(3,empty)))\ntrue\ntrue\n");
+        let s = String::from("(define (list-add lst) (if (empty? lst) 0 (+ (car lst) (list-add (cdr lst)))))\n
+            (list-add (list 1 2 3 4))\n");
+        assert_eq!(run_scheme(s), "10\n");
+    }
 }

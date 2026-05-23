@@ -78,6 +78,32 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                     }
                     SchemeError()
                 },
+                "cons" => {
+                    if vals.len() != 2 { return SchemeError(); }
+                    Pair(vals[0].clone().into(), vals[1].clone().into())
+                },
+                "car" => {
+                    if vals.len() != 1 { return SchemeError(); }
+                    if let Pair(x,_y) = &vals[0] {
+                        (**x).clone()
+                    }
+                    else { SchemeError() }
+                },
+                "cdr" => {
+                    if vals.len() != 1 { return SchemeError(); }
+                    if let Pair(_x,y) = &vals[0] {
+                        (**y).clone()
+                    }
+                    else { SchemeError() }
+                },
+                "empty?" => {
+                    if vals.len() != 1 { return SchemeError(); }
+                    if let Empty() = &vals[0] { Boolean(true) }
+                    else { Boolean(false) }
+                },
+                "list" => {
+                    vals.into_iter().rfold(Empty(), |x, y| Pair(y.clone().into(), x.clone().into()))
+                },
                 _ => SchemeError(),
             }
         Function(bindings, exp) => {
@@ -100,6 +126,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
         Text(txt) => {
             if **txt == "true" { Boolean(true) }
             else if **txt == "false" { Boolean(false) }
+            else if **txt == "empty" { Empty() }
             else if let Ok(n) = (**txt).parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) }
             else if SUPPORTED_OPPERATIONS.contains(&*txt as &str) {
                 SupportedFunction(txt.clone())
@@ -222,17 +249,8 @@ pub fn run_scheme(text: String) -> String {
 
         let result = eval_scheme(&expr, &definitions);
 
-        match result {
-            Number(neg, n, d) => {
-                result_string += format!("{}{n}{}\n", if neg {"-"} else {""},
-                    if d != 1 {"/".to_string() + &d.to_string()} else {"".to_string()}).as_str()
-            },
-            Boolean(b) => {
-                result_string += format!("{}\n", b).as_str()
-            },
-            SchemeError() => result_string += "Error\n",
-            _ => result_string += ""
-        }
+        result_string += &result.to_string();
+        result_string += "\n";
     }
     return result_string;
 }

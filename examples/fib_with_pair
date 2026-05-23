@@ -1,0 +1,13 @@
+(define (fib-next p) (cons (+ (car p) (cdr p)) (car p)))
+(define (fib-helper n) (cond (number=? n 0) (cons 1 0) (number=? n 1) (cons 1 1) true 
+    (fib-next (fib-helper (- n 1)))))
+(define (fib n) (car (fib-helper n)))
+
+(fib 0)
+(fib 1)
+(fib 2)
+(fib 3)
+(fib 4)
+(fib 5)
+(fib 25)
+(fib 30)
