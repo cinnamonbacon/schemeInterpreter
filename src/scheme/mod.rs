@@ -41,7 +41,7 @@ where
             m_ch = parsed.next();
             continue;
         }
-        pt.add_expr(Expr::Text(String::from(ch)));
+        pt.add_expr(Expr::Text(String::from(ch).into()));
         m_ch = parsed.next();
     }
     pt
@@ -51,7 +51,7 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
     let func = vals.remove(0);
     match func {
         SupportedFunction(s) =>
-            match s.as_str(){
+            match &**s{
                 "+" =>  vals.into_iter().fold(Number(false, 0, 1), |x, y| x + y),
                 "-" =>  {
                     let mut sum = vals[0].clone();
@@ -98,14 +98,14 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
 fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
     match ex{
         Text(txt) => {
-            if txt == "true" { Boolean(true) }
-            else if txt == "false" { Boolean(false) }
-            else if let Ok(n) = txt.parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) }
-            else if SUPPORTED_OPPERATIONS.contains(txt as &str) {
-                SupportedFunction(txt.to_string())
+            if **txt == "true" { Boolean(true) }
+            else if **txt == "false" { Boolean(false) }
+            else if let Ok(n) = (**txt).parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) }
+            else if SUPPORTED_OPPERATIONS.contains(&*txt as &str) {
+                SupportedFunction(txt.clone())
             }
-            else if dict.contains_key(txt) {
-                dict.get(txt).unwrap().clone()
+            else if dict.contains_key(&**txt) {
+                dict.get(&**txt).unwrap().clone()
             }
             else{ SchemeError() }
         },
@@ -116,7 +116,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                 if let SchemeError() = next_res {
                     if vals.len() > 0 {
                         if let SupportedFunction(s) = &vals[0]{
-                            if s != "lambda"{
+                            if **s != "lambda"{
                                 return SchemeError();
                             }
                         } else {
@@ -125,7 +125,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                     }
                 }
                 if let SupportedFunction(s) = &next_res{
-                    match s.as_str(){
+                    match (**s).as_str(){
                         // Special treatement of cond and if and lambda
                         "cond" => {
                             if expr.list.len() % 2 != 1 { return SchemeError(); }
@@ -183,7 +183,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
 fn add_definition(expr: &Expr, definitions: &mut HashMap<String, Val>) -> bool{
     if let Tree(tr) = expr {
         if let Text(s) = &tr.list[0]{
-            if s == "define" {
+            if **s == "define" {
                 match &tr.list[1] {
                     Text(var) => {definitions.insert(var.to_string(), eval_scheme(&tr.list[2], &definitions));}
                     Tree(bindings) => {

@@ -1,5 +1,6 @@
 use crate::scheme::Val;
 use crate::scheme::Val::Function;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct ParseTree{
@@ -14,7 +15,7 @@ impl ParseTree{
 
 #[derive(Debug)]
 pub enum Expr{
-    Text(String),
+    Text(Rc<String>),
     Bound(Box<Val>),
     Tree(Box<ParseTree>),
 }
@@ -40,7 +41,7 @@ impl Clone for Expr{
 impl Expr {
     pub fn bind_val(self, replace: &String, v: &Val) -> Expr {
         match self {
-            Text(s) => if s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
+            Text(s) => if **s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
             Bound(b) => {
                 if let Function(bindings, expr) = *b{
                     if let Some(_) = bindings.iter().position(|s| s == replace) {
@@ -57,11 +58,11 @@ impl Expr {
             Tree(pt) => {
                 let mut ret = ParseTree{ list: Vec::new() };
                 if let Text(s) = &pt.list[0] {
-                    if s == "lambda" {
+                    if **s == "lambda" {
                         if let Tree(bindings) = &pt.list[1] {
                             for b in bindings.list.clone(){
                                 if let Text(binding_name) = b{
-                                    if binding_name == *replace {
+                                    if **binding_name == *replace {
                                         return Tree(pt)
                                     };
                                 }
