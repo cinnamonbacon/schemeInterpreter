@@ -1,3 +1,5 @@
+mod scheme_tests;
+
 use std::ops;
 use std::collections::HashMap;
 use phf::{phf_set, Set};

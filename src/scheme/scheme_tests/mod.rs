@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests{
-    use crate::scheme::run_scheme;
+    use crate::run_scheme;
 
     #[test]
     fn basic_expr() {
@@ -98,5 +98,9 @@ mod tests{
     fn div_by_zero() {
         let s = String::from("(/ 4 0)");
         assert_eq!(run_scheme(s), "Error\n");
+        let s = String::from("(/ 0 0)");
+        assert_eq!(run_scheme(s), "Error\n");
+        let s = String::from("(/ 0 4)");
+        assert_eq!(run_scheme(s), "0\n");
     }
 }
