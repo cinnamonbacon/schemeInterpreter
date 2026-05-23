@@ -58,7 +58,24 @@ Putting this all together we can write a basic implementation of factorial
 (fact 4)
 ```
 
-You may also want to play around with lambda functions which are implemented. Consider the implementation of pairs.
+Pairs are also implemented with cons creating a pair such and car and cdr reading the first and second element respectively. For example
+```
+(car (cons 1 2))
+(cdr (cons 1 2))
+```
+Evaluate to 1 and 2. Without pairs we could implement the fibonacci sequence such as
+```
+(define (fib n) (cond (number=? n 0) 1 (number=? n 1) 1 true (+ (fib (- n 1)) (fib (- n 2)))))
+```
+But the time of this grows exponentially as we are redoing a bunch of work when calculating the (n-1)th and (n-2)th term. Instead we can define (fib-helper n) to return a pair of the nth and (n-1)th term. Then we can add them
+```
+(define (fib-next p) (cons (+ (car p) (cdr p)) (car p)))
+(define (fib-helper n) (cond (number=? n 0) (cons 1 0) (number=? n 1) (cons 1 1) true 
+    (fib-next (fib-helper (- n 1)))))
+(define (fib n) (car (fib-helper n)))
+```
+
+You may also want to play around with lambda functions which are implemented. Consider an alternative implementation of pairs.
 ```scheme
 (define (pair x y) (lambda (b) (if b x y)))
 (define (first p) (p true))
