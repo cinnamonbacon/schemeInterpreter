@@ -129,4 +129,18 @@ mod tests{
             (list-add (list 1 2 3 4))\n");
         assert_eq!(run_scheme(s), "10\n");
     }
+
+    #[test]
+    fn begin() {
+        let s = String::from("(begin (list 1 2 3) (+ 3 4) (define x 4) x)\n");
+        assert_eq!(run_scheme(s), "4\n");
+    }
+
+    #[test]
+    fn implicit_begin() {
+        let s = String::from("(define (apply-add-n n x) (define (add-n x) (+ n x)) (add-n x))\n(apply-add-n 3 5)\n");
+        assert_eq!(run_scheme(s), "8\n");
+        let s = String::from("(define apply-add-n (lambda (n x) (define (add-n x) (+ n x)) (add-n x)))\n(apply-add-n 3 5)\n");
+        assert_eq!(run_scheme(s), "8\n");
+    }
 }
