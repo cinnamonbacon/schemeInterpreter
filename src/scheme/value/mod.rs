@@ -1,4 +1,4 @@
-use crate::scheme::Expr;
+use crate::scheme::ParseTree;
 
 use std::ops;
 use phf::{phf_set, Set};
@@ -19,13 +19,14 @@ pub static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "cdr",
     "empty?",
     "list",
+    "begin",
 };
 
 #[derive(Debug)]
 pub enum Val{
     Number(bool, u32, u32),
     Boolean(bool),
-    Function(Vec<String>, Expr),
+    Function(Vec<String>, Rc<ParseTree>),
     SupportedFunction(Rc<String>),
     Pair(Rc<Val>, Rc<Val>),
     Empty(),
@@ -39,7 +40,7 @@ impl Clone for Val{
         match self{
             Number(b, n, d) => Number(*b, *n, *d),
             Boolean(b) => Boolean(*b),
-            Function(bindings, exp) => Function(bindings.clone(), exp.clone()),
+            Function(bindings, tree) => Function(bindings.clone(), tree.clone()),
             SupportedFunction(s) => SupportedFunction(s.clone()),
             Pair(x,y) => Pair(x.clone(), y.clone()),
             Empty() => Empty(),

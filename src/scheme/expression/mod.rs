@@ -43,12 +43,16 @@ impl Expr {
         match self {
             Text(s) => if **s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
             Bound(b) => {
-                if let Function(bindings, expr) = *b{
+                if let Function(bindings, tree) = *b{
                     if let Some(_) = bindings.iter().position(|s| s == replace) {
-                        Bound(Box::new(Function(bindings, expr)))
+                        Bound(Box::new(Function(bindings, tree.clone())))
                     }
                     else{
-                        Bound(Box::new(Function(bindings, expr.bind_val(replace, v))))
+                        let mut new_tree = ParseTree{ list: Vec::new() };
+                        for expr in tree.list.clone() {
+                            new_tree.add_expr(expr.bind_val(replace, v));
+                        }
+                        Bound(Box::new(Function(bindings, new_tree.into())))
                     }
                 }
                 else{

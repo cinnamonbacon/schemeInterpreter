@@ -22,7 +22,8 @@ fn tokenize_scheme(text: &str)-> Vec<&str> {
         parsed.push(matched);
         last = index + matched.len();
     }
-    parsed.into_iter().map(|x| x.split(' ').collect::<Vec::<&str>>()).flatten()
+    parsed.push(&text[last..]);
+    parsed.into_iter().map(|x| x.split(|c: char| c.is_whitespace()).collect::<Vec::<&str>>()).flatten()
         .filter(|x| !x.trim().is_empty()).collect::<Vec::<&str>>()
 }
 
@@ -30,7 +31,7 @@ fn build_tree<'a, I>(parsed: &mut I)-> ParseTree
 where
     I: Iterator<Item = &'a str>,
 {
-    let mut pt = ParseTree{ list: Vec::<Expr>::new()};
+    let mut pt = ParseTree{ list: Vec::<Expr>::new() };
     let mut m_ch = parsed.next();
     while let Some(ch) = m_ch {
         if ch == ")" {
@@ -106,7 +107,7 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                 },
                 _ => SchemeError("Supported function not implemented".to_string()),
             }
-        Function(bindings, exp) => {
+        Function(bindings, tree) => {
             if bindings.len() != vals.len(){
                 return SchemeError("Wrong number of operands for function".to_string());
             }
@@ -115,7 +116,12 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                 let (binding, val) = it;
                 new_dict.insert(binding.to_string(), val.clone());
             }
-            eval_scheme(&exp, &new_dict)
+            let mut result = SchemeError("Function must have at least one expression".to_string());
+            for expr in &tree.list{
+                if add_definition(expr, &mut new_dict) {continue}
+                result = eval_scheme(expr, &new_dict);
+            }
+            result
         }
         SchemeError(s) => SchemeError(s),
         x => SchemeError(format!("Tried to apply non function {}", x.to_string())),
@@ -135,26 +141,18 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
             else if dict.contains_key(&**txt) {
                 dict.get(&**txt).unwrap().clone()
             }
-            else{ SchemeError(format!("The string {} does is not defined and is not supported", **txt)) }
+            else{ SchemeError(format!("The string {} is not defined and is not supported", **txt)) }
         },
         Tree(expr) => {
             let mut vals: Vec::<Val> = Vec::new();
             for exp in &expr.list {
                 let next_res = eval_scheme(&exp, dict);
                 if let SchemeError(err) = &next_res {
-                    if vals.len() > 0 {
-                        if let SupportedFunction(s) = &vals[0]{
-                            if **s != "lambda"{
-                                return SchemeError(err.to_string());
-                            }
-                        } else {
-                            return SchemeError(err.to_string());
-                        }
-                    }
+                    return SchemeError(err.to_string());
                 }
                 if let SupportedFunction(s) = &next_res{
                     match (**s).as_str(){
-                        // Special treatement of cond and if and lambda
+                        // Special treatement of cond, if, lambda, and begin
                         "cond" => {
                             if expr.list.len() % 2 != 1 { return SchemeError("Odd number of operands for cond".to_string()); }
                             let mut index = 1;
@@ -188,15 +186,30 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                                         return SchemeError("Binding of lambda is not a string".to_string());
                                     }
                                 }
-                                let mut expression = expr.list[2].clone();
-                                for (key,val) in dict {
-                                    if bindings.contains(key) { continue; }
-                                    expression = expression.bind_val(key,val);
+                                let mut tree = ParseTree{ list: Vec::<Expr>::new() };
+                                let mut lst = expr.list.clone();
+                                lst.remove(1);
+                                for mut expression in lst {
+                                    for (key,val) in dict {
+                                        if bindings.contains(key) { continue; }
+                                        expression = expression.bind_val(key,val);
+                                    }
+                                    tree.add_expr(expression.clone());
                                 }
-                                return Function(bindings, expression);
+                                return Function(bindings, tree.into());
                             } else {
                                 return SchemeError("Second operand of lamdba is not a list of bindings".to_string());
                             }
+                        }
+                        "begin" => {
+                            let mut new_dict = dict.clone();
+                            let mut result = SchemeError("Begin must have at least one operand".to_string());
+                            for expr in &expr.list[1..]{
+                                if add_definition(&expr, &mut new_dict) {continue}
+
+                                result = eval_scheme(&expr, &new_dict);
+                            }
+                            return result;
                         }
                         _ => (),
                     }
@@ -212,27 +225,33 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
 
 fn add_definition(expr: &Expr, definitions: &mut HashMap<String, Val>) -> bool{
     if let Tree(tr) = expr {
-        if let Text(s) = &tr.list[0]{
-            if **s == "define" {
-                match &tr.list[1] {
-                    Text(var) => {definitions.insert(var.to_string(), eval_scheme(&tr.list[2], &definitions));}
-                    Tree(bindings) => {
-                        if let Text(var) = &bindings.list[0]{
-                            let mut bounded = Vec::new();
-                            for bind in &bindings.list[1..] {
-                                if let Text(s) = bind {
-                                    bounded.push(s.to_string());
+        if tr.list.len() >= 1 {
+            if let Text(s) = &tr.list[0]{
+                if **s == "define" {
+                    match &tr.list[1] {
+                        Text(var) => {definitions.insert(var.to_string(), eval_scheme(&tr.list[2], &definitions));}
+                        Tree(bindings) => {
+                            if let Text(var) = &bindings.list[0]{
+                                let mut bounded = Vec::new();
+                                for bind in &bindings.list[1..] {
+                                    if let Text(s) = bind {
+                                        bounded.push(s.to_string());
+                                    }
+                                    else {
+                                        continue;
+                                    }
                                 }
-                                else {
-                                    continue;
+                                let mut tree = ParseTree{ list: Vec::<Expr>::new() };
+                                for exp in &tr.list[2..] {
+                                    tree.add_expr(exp.clone());
                                 }
+                                definitions.insert(var.to_string(), Function(bounded, tree.into()));
                             }
-                            definitions.insert(var.to_string(), Function(bounded, tr.list[2].clone()));
                         }
+                        Bound(_v) => () // Should not get here
                     }
-                    Bound(_v) => () // Should not get here
+                    return true;
                 }
-                return true;
             }
         }
     }
