@@ -1,8 +1,12 @@
 use crate::scheme::Val;
 use crate::scheme::Val::Function;
-use std::rc::Rc;
+use crate::scheme::next_function_id;
+use std::sync::Arc;
+use std::hash::Hash;
 
 #[derive(Debug)]
+#[derive(Hash)]
+#[derive(Eq,PartialEq)]
 pub struct ParseTree{
     pub list: Vec<Expr>,
 }
@@ -14,8 +18,10 @@ impl ParseTree{
 }
 
 #[derive(Debug)]
+#[derive(Hash)]
+#[derive(Eq,PartialEq)]
 pub enum Expr{
-    Text(Rc<String>),
+    Text(Arc<String>),
     Bound(Box<Val>),
     Tree(Box<ParseTree>),
 }
@@ -43,16 +49,16 @@ impl Expr {
         match self {
             Text(s) => if **s == *replace { Bound(Box::new(v.clone())) } else{ Text(s) },
             Bound(b) => {
-                if let Function(bindings, tree) = *b{
+                if let Function(bindings, tree, n) = *b{
                     if let Some(_) = bindings.iter().position(|s| s == replace) {
-                        Bound(Box::new(Function(bindings, tree.clone())))
+                        Bound(Box::new(Function(bindings, tree.clone(), n)))
                     }
                     else{
                         let mut new_tree = ParseTree{ list: Vec::new() };
                         for expr in tree.list.clone() {
                             new_tree.add_expr(expr.bind_val(replace, v));
                         }
-                        Bound(Box::new(Function(bindings, new_tree.into())))
+                        Bound(Box::new(Function(bindings, new_tree.into(), next_function_id())))
                     }
                 }
                 else{

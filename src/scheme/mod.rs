@@ -7,6 +7,9 @@ use std::collections::HashMap;
 use value::Val;
 use value::Val::*;
 use value::SUPPORTED_OPPERATIONS;
+use value::next_function_id;
+use value::cache_get;
+use value::cache_put;
 
 use expression::ParseTree;
 use expression::Expr;
@@ -107,7 +110,10 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                 },
                 _ => SchemeError("Supported function not implemented".to_string()),
             }
-        Function(bindings, tree) => {
+        Function(bindings, tree, id) => {
+            if let Some(val) = cache_get(id, &vals) {
+                return val;
+            }
             if bindings.len() != vals.len(){
                 return SchemeError("Wrong number of operands for function".to_string());
             }
@@ -121,6 +127,7 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                 if add_definition(expr, &mut new_dict) {continue}
                 result = eval_scheme(expr, &new_dict);
             }
+            cache_put(id, &vals, &result);
             result
         }
         SchemeError(s) => SchemeError(s),
@@ -196,7 +203,8 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
                                     }
                                     tree.add_expr(expression.clone());
                                 }
-                                return Function(bindings, tree.into());
+                                return Function(bindings, tree.into(),
+                                    next_function_id());
                             } else {
                                 return SchemeError("Second operand of lamdba is not a list of bindings".to_string());
                             }
@@ -245,7 +253,8 @@ fn add_definition(expr: &Expr, definitions: &mut HashMap<String, Val>) -> bool{
                                 for exp in &tr.list[2..] {
                                     tree.add_expr(exp.clone());
                                 }
-                                definitions.insert(var.to_string(), Function(bounded, tree.into()));
+                                definitions.insert(var.to_string(), 
+                                    Function(bounded, tree.into(), next_function_id()));
                             }
                         }
                         Bound(_v) => () // Should not get here
