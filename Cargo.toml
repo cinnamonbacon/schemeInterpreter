@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 gcd = "2.3.0"
+lazy_static = "1.5.0"
 lcm = "0.2.0"
+lru = "0.18.0"
 phf = { version = "0.13.1", features = ["macros"] }
 
 [features]

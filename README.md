@@ -67,13 +67,23 @@ Evaluate to 1 and 2. Without pairs we could implement the fibonacci sequence suc
 ```
 (define (fib n) (cond (number=? n 0) 1 (number=? n 1) 1 true (+ (fib (- n 1)) (fib (- n 2)))))
 ```
-But the time of this grows exponentially as we are redoing a bunch of work when calculating the (n-1)th and (n-2)th term. Instead we can define (fib-helper n) to return a pair of the nth and (n-1)th term. Then we can add them
+But the time of this grows exponentially as we are redoing a bunch of work when calculating the (n-1)th and (n-2)th term. Instead we can define (fib-helper n) to return a pair of the nth and (n-1)th term. The cache implemented actually makes this linear as the repeated calls are not repeated.
+
+But we can add also implement it with returning pairs.
 ```
 (define (fib-next p) (cons (+ (car p) (cdr p)) (car p)))
 (define (fib-helper n) (cond (number=? n 0) (cons 1 0) (number=? n 1) (cons 1 1) true 
     (fib-next (fib-helper (- n 1)))))
 (define (fib n) (car (fib-helper n)))
 ```
+Note that here we had to use fib-next to be able to repeat p. But with local definitions this can also be done as
+```
+(define (fib-helper n) (cond (number=? n 0) (cons 1 0) (number=? n 1) (cons 1 1) true 
+    (begin (define p (fib-helper (- n 1)))
+           (cons (+ (car p) (cdr p)) (car p)))))
+(define (fib n) (car (fib-helper n)))
+```
+begin allows multiple expressions to be evaluated including definitions. Note that functions and lambdas have an implicit begin so that they can have definitions. The last expression is the one that is returned.
 
 Lists are a nesting of pairs where the first element in each pair is the first of the list and the rest of the elements are stored in the second part of the list. There is also a special list that every list contains which is the empty list. "empty" evaluates to this list and (empty? x) evaluates if something is the empty list. It is false for everything except the empty list
 ```

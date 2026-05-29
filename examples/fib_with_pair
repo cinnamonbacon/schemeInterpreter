@@ -11,3 +11,8 @@
 (fib 25)
 (fib 30)
 (fib 40)
+(fib 50)
+(fib 60)
+(fib 70)
+(fib 80)
+(fib 90)
