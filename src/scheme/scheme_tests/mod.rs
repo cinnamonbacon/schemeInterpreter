@@ -143,4 +143,11 @@ mod tests{
         let s = String::from("(define apply-add-n (lambda (n x) (define (add-n x) (+ n x)) (add-n x)))\n(apply-add-n 3 5)\n");
         assert_eq!(run_scheme(s), "8\n");
     }
+
+    #[test]
+    fn symbols() {
+        let s = String::from("(define x 'foo)\n(define y 'bar)\n(symbol=? x y)\n
+            (symbol=? x 'foo)\n(symbol=? y y)\n(symbol=? y 'foo)");
+        assert_eq!(run_scheme(s), "false\ntrue\ntrue\nfalse\n");
+    }
 }

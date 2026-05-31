@@ -17,6 +17,7 @@ pub static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "*",
     "/",
     "number=?",
+    "symbol=?",
     "if",
     "cond",
     "lambda",
@@ -65,6 +66,7 @@ pub fn next_function_id() -> u64 {
 pub enum Val{
     Number(BigRational),
     Boolean(bool),
+    Symbol(Arc<String>),
     Function(Vec::<String>, Arc<ParseTree>, u64),
     SupportedFunction(Arc<String>),
     Pair(Arc<Val>, Arc<Val>),
@@ -79,6 +81,7 @@ impl Clone for Val{
         match self{
             Number(r) => Number(r.clone()),
             Boolean(b) => Boolean(*b),
+            Symbol(s) => Symbol(s.clone()),
             Function(bindings, tree, id) => Function(bindings.clone(), tree.clone(), *id),
             SupportedFunction(s) => SupportedFunction(s.clone()),
             Pair(x,y) => Pair(x.clone(), y.clone()),
@@ -150,6 +153,9 @@ impl ToString for Val {
             Boolean(b) => {
                 format!("{}", b)
             },
+            Symbol(s) => {
+                format!("'{}",s.to_string())
+            },
             Function(_bindings, _expr, _id) => "Function".to_string(),
             SupportedFunction(_s) => "Function".to_string(),
             Pair(x, y) => {
@@ -175,6 +181,7 @@ impl PartialEq for Val {
                 }
             },
             Boolean(b) => if let Boolean(ob) = other { b == ob } else { false }
+            Symbol(s) => if let Symbol(os) = other { **s == **os } else { false }
             Function(_,_,n) => {
                 if let Function(_,_,on) = other {
                     n == on

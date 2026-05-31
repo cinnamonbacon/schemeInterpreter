@@ -87,6 +87,16 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                     }
                     else { SchemeError("Left side of number=? is non Number value".to_string()) }
                 },
+                "symbol=?" => {
+                    if vals.len() != 2 { return SchemeError("Wrong number of operands for symbol=?".to_string()); }
+                    if let Symbol(s) = &vals[0]{
+                        if let Symbol(os) = &vals[1]{
+                            Boolean(**s == **os)
+                        }
+                        else { SchemeError("Right side symbol=? to non Symbol value".to_string()) }
+                    }
+                    else { SchemeError("Left side of symbol=? is non Symbol value".to_string()) }
+                },
                 "cons" => {
                     if vals.len() != 2 { return SchemeError("Wrong number of operands for cons".to_string()); }
                     Pair(vals[0].clone().into(), vals[1].clone().into())
@@ -146,6 +156,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
             if **txt == "true" { Boolean(true) }
             else if **txt == "false" { Boolean(false) }
             else if **txt == "empty" { Empty() }
+            else if (**txt).chars().next() == Some('\'') { Symbol((**txt)[1..].to_string().into()) }
             else if let Ok(r) = (**txt).parse::<BigRational>(){ Number(r) }
             else if SUPPORTED_OPPERATIONS.contains(&*txt as &str) {
                 SupportedFunction(txt.clone())
