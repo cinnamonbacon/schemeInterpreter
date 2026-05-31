@@ -77,6 +77,12 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                     }
                     quotient
                 }
+                "or" => vals.into_iter().fold(Boolean(false), |x, y| x | y),
+                "and" => vals.into_iter().fold(Boolean(true), |x, y| x & y),
+                "not" => {
+                    if vals.len() != 1 { return SchemeError("Wrong number of operands for not".to_string()); }
+                    !vals[0].clone()
+                }
                 "number=?" => {
                     if vals.len() != 2 { return SchemeError("Wrong number of operands for number=?".to_string()); }
                     if let Number(r) = &vals[0]{

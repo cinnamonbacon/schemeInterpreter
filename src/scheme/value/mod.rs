@@ -16,6 +16,9 @@ pub static SUPPORTED_OPPERATIONS: Set<&'static str> = phf_set! {
     "-",
     "*",
     "/",
+    "or",
+    "and",
+    "not",
     "number=?",
     "if",
     "cond",
@@ -138,6 +141,43 @@ impl ops::Div<Val> for Val {
             }
         }
         SchemeError("Dividing values that are not numbers".to_string())
+    }
+}
+
+impl ops::Not for Val {
+    type Output = Val;
+
+    fn not(self) -> Val {
+        if let Boolean(b) = self{
+            return Boolean(!b);
+        }
+        SchemeError("Not operator applied to non-boolean".to_string())
+    }
+}
+
+impl ops::BitAnd<Val> for Val {
+    type Output = Val;
+
+    fn bitand(self, rhs: Val) -> Val {
+        if let Boolean(b) = self{
+            if let Boolean(ob) = rhs{
+                return Boolean(b && ob);
+            }
+        }
+        SchemeError("And operator applied to non-boolean".to_string())
+    }
+}
+
+impl ops::BitOr<Val> for Val {
+    type Output = Val;
+
+    fn bitor(self, rhs: Val) -> Val {
+        if let Boolean(b) = self{
+            if let Boolean(ob) = rhs{
+                return Boolean(b || ob);
+            }
+        }
+        SchemeError("Or operator applied to non-boolean".to_string())
     }
 }
 

@@ -143,4 +143,22 @@ mod tests{
         let s = String::from("(define apply-add-n (lambda (n x) (define (add-n x) (+ n x)) (add-n x)))\n(apply-add-n 3 5)\n");
         assert_eq!(run_scheme(s), "8\n");
     }
+
+    #[test]
+    fn or() {
+        let s = String::from("(or)\n(or true)\n(or true false true)\n(or false false true)\n(or false false false)\n");
+        assert_eq!(run_scheme(s), "false\ntrue\ntrue\ntrue\nfalse\n");
+    }
+
+    #[test]
+    fn and() {
+        let s = String::from("(and)\n(and true)\n(and false)\n(and true false true)\n(and true true true)\n");
+        assert_eq!(run_scheme(s), "true\ntrue\nfalse\nfalse\ntrue\n");
+    }
+
+    fn not() {
+        let s = String::from("(not true)(not false)(not 1)(not 3 4)");
+        assert_eq!(run_scheme(s), "false\ntrue\nError: Not operator applied to non-boolean
+            \nError: Wrong number of operands for not\n");
+    }
 }
