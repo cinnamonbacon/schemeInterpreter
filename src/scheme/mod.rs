@@ -3,6 +3,8 @@ mod value;
 mod expression;
 
 use std::collections::HashMap;
+use num::rational::{BigRational, Ratio};
+use num::{Zero, One};
 
 use value::Val;
 use value::Val::*;
@@ -56,7 +58,7 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
     match func {
         SupportedFunction(s) =>
             match &**s{
-                "+" =>  vals.into_iter().fold(Number(false, 0, 1), |x, y| x + y),
+                "+" =>  vals.into_iter().fold(Number(Ratio::zero()), |x, y| x + y),
                 "-" =>  {
                     let mut sum = vals[0].clone();
                     for val in vals.into_iter().skip(1){
@@ -64,23 +66,26 @@ fn apply_func(mut vals: Vec<Val>, dict: &HashMap<String, Val>) -> Val{
                     }
                     sum
                 }
-                "*" => vals.into_iter().fold(Number(false, 1, 1), |x, y| x * y),
+                "*" => vals.into_iter().fold(Number(Ratio::one()), |x, y| x * y),
                 "/" => {
                     let mut quotient = vals[0].clone();
                     for val in vals.into_iter().skip(1){
-                        if let Number(false, 0, 1) = val { return SchemeError("Divide by zero".to_string()); }
+                        if let Number(n) = &val { 
+                            if n.is_zero() { return SchemeError("Divide by zero".to_string()); }
+                        }
                         quotient = quotient / val;
                     }
                     quotient
                 }
                 "number=?" => {
                     if vals.len() != 2 { return SchemeError("Wrong number of operands for number=?".to_string()); }
-                    if let Number(neg, n, d) = vals[0]{
-                        if let Number(oneg, on, od) = vals[1]{
-                            return Boolean(neg == oneg && n == on && d == od);
+                    if let Number(r) = &vals[0]{
+                        if let Number(or) = &vals[1]{
+                            Boolean(r == or)
                         }
+                        else { SchemeError("Right side number=? to non Number value".to_string()) }
                     }
-                    SchemeError("Applied number=? to non Number values".to_string())
+                    else { SchemeError("Left side of number=? is non Number value".to_string()) }
                 },
                 "cons" => {
                     if vals.len() != 2 { return SchemeError("Wrong number of operands for cons".to_string()); }
@@ -141,7 +146,7 @@ fn eval_scheme(ex: &Expr, dict: &HashMap<String,Val>) -> Val{
             if **txt == "true" { Boolean(true) }
             else if **txt == "false" { Boolean(false) }
             else if **txt == "empty" { Empty() }
-            else if let Ok(n) = (**txt).parse::<i32>(){ Number(n < 0, n.abs().try_into().unwrap() , 1) }
+            else if let Ok(r) = (**txt).parse::<BigRational>(){ Number(r) }
             else if SUPPORTED_OPPERATIONS.contains(&*txt as &str) {
                 SupportedFunction(txt.clone())
             }

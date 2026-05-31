@@ -2,12 +2,12 @@ use crate::scheme::ParseTree;
 
 use std::ops;
 use std::collections::HashMap;
-use phf::{phf_set, Set};
-use gcd::Gcd;
+use phf::{Set,phf_set};
 use std::sync::{Arc, Mutex};
 use std::hash::Hash;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::num::NonZeroUsize;
+use num::rational::BigRational;
 
 use lru::LruCache;
 
@@ -63,7 +63,7 @@ pub fn next_function_id() -> u64 {
 #[derive(Hash)]
 #[derive(Eq)]
 pub enum Val{
-    Number(bool, u64, u64),
+    Number(BigRational),
     Boolean(bool),
     Function(Vec::<String>, Arc<ParseTree>, u64),
     SupportedFunction(Arc<String>),
@@ -77,7 +77,7 @@ use Val::*;
 impl Clone for Val{
     fn clone(&self) -> Self {
         match self{
-            Number(b, n, d) => Number(*b, *n, *d),
+            Number(r) => Number(r.clone()),
             Boolean(b) => Boolean(*b),
             Function(bindings, tree, id) => Function(bindings.clone(), tree.clone(), *id),
             SupportedFunction(s) => SupportedFunction(s.clone()),
@@ -93,27 +93,9 @@ impl ops::Add<Val> for Val {
     type Output = Val;
 
     fn add(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, on, od) = rhs{
-                let mut new_denom = d * od / d.gcd(od);
-                let mut n = n * new_denom / od;
-                let on = on * new_denom / d;
-                let mut neg = neg;
-
-                if n > on {
-                    n = if neg == oneg {n + on} else {n - on};
-                }
-                else {
-                    n = if neg == oneg {on + n} else {on - n};
-                    neg = oneg;
-                }
-
-                if n == 0 {
-                    new_denom = 1;
-                    neg = false;
-                }
-
-                return Number(neg, n, new_denom);
+        if let Number(r) = self{
+            if let Number(or) = rhs{
+                return Number(r + or);
             }
         }
         SchemeError("Adding values that are not numbers".to_string())
@@ -124,28 +106,9 @@ impl ops::Sub<Val> for Val {
     type Output = Val;
 
     fn sub(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, on, od) = rhs{
-                let mut new_denom = d * od / d.gcd(od);
-                let mut n = n * new_denom / od;
-                let on = on * new_denom / d;
-                let mut neg = neg;
-                let oneg = !oneg;
-
-                if n > on {
-                    n = if neg == oneg {n + on} else {n - on};
-                }
-                else {
-                    n = if neg == oneg {on + n} else {on - n};
-                    neg = oneg;
-                }
-
-                if n == 0 {
-                    new_denom = 1;
-                    neg = false;
-                }
-
-                return Number(neg, n, new_denom);
+        if let Number(r) = self{
+            if let Number(or) = rhs{
+                return Number(r - or);
             }
         }
         SchemeError("Subtracting values that are not numbers".to_string())
@@ -156,16 +119,9 @@ impl ops::Mul<Val> for Val {
     type Output = Val;
 
     fn mul(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, on, od) = rhs{
-                let n = n * on;
-                let d = d * od;
-                let common = n.gcd(d);
-                let n = n / common;
-                let d = d / common;
-
-                let neg = neg != oneg;
-                return Number(neg, n, d);
+        if let Number(r) = self{
+            if let Number(or) = rhs{
+                return Number(r * or);
             }
         }
         SchemeError("Multiplying values that are not numbers".to_string())
@@ -176,16 +132,9 @@ impl ops::Div<Val> for Val {
     type Output = Val;
 
     fn div(self, rhs: Val) -> Val {
-        if let Number(neg, n ,d) = self{
-            if let Number(oneg, od, on) = rhs{
-                let n = n * on;
-                let d = d * od;
-                let common = n.gcd(d);
-                let n = n / common;
-                let d = d / common;
-
-                let neg = neg != oneg;
-                return Number(neg, n, d);
+        if let Number(r) = self{
+            if let Number(or) = rhs{
+                return Number(r / or);
             }
         }
         SchemeError("Dividing values that are not numbers".to_string())
@@ -195,9 +144,8 @@ impl ops::Div<Val> for Val {
 impl ToString for Val {
     fn to_string(&self) -> String {
         match self {
-            Number(neg, n, d) => {
-                format!("{}{n}{}", if *neg {"-"} else {""},
-                    if *d != 1 {"/".to_string() + &d.to_string()} else {"".to_string()})
+            Number(r) => {
+                r.to_string()
             },
             Boolean(b) => {
                 format!("{}", b)
@@ -218,9 +166,9 @@ impl ToString for Val {
 impl PartialEq for Val {
     fn eq(&self, other: &Self) -> bool {
         match self {
-            Number(neg, n, d) => {
-                if let Number(oneg, on, od) = other {
-                    neg == oneg && n == on && d == od
+            Number(r) => {
+                if let Number(or) = other {
+                    r == or
                 }
                 else {
                     false
